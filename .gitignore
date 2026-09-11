@@ -12,12 +12,14 @@ env/
 # Environment variables (never commit real secrets)
 .env
 
-# Local data: database, uploads, vector store
+# Local data: database, uploads, citizen documents, vector store
 data/*.db
 data/uploads/*
+data/documents/*
 data/chroma/*
 !data/.gitkeep
 !data/uploads/.gitkeep
+!data/documents/.gitkeep
 !data/chroma/.gitkeep
 
 # Editors / OS

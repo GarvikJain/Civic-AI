@@ -186,7 +186,14 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | GET | `/api/v1/officers/dashboard` | officer, administrator |
 | POST | `/api/v1/regulations` | administrator |
 | GET | `/api/v1/regulations/status` | Module 1 status |
-| GET | `/api/v1/documents/status` | Module 2 status |
+| GET | `/api/v1/documents/status` | anyone |
+| POST | `/api/v1/documents/upload` | citizen |
+| GET | `/api/v1/documents` | citizen |
+| GET | `/api/v1/documents/{id}` | citizen (own documents) |
+| POST | `/api/v1/documents/{id}/verify` | citizen (own documents) |
+| GET | `/api/v1/officers/documents/review` | officer, administrator |
+| POST | `/api/v1/officers/documents/{id}/approve` | officer, administrator |
+| POST | `/api/v1/officers/documents/{id}/reject` | officer, administrator |
 | GET | `/api/v1/queue/status` | Module 3 status |
 | GET | `/api/v1/officers/status` | Module 4 status |
 | GET | `/api/v1/eligibility/status` | Module 5 status |
@@ -279,6 +286,66 @@ Tuning lives in `.env`: `RAG_TOP_K`, `RAG_RERANK_TOP_K`, `RAG_MIN_SCORE`,
 `RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`, `EMBEDDING_MODEL`, `RERANKER_MODEL`,
 `GROQ_MODEL`. The embedding and reranker models download on first use and are
 then loaded once per process, not once per request.
+
+---
+
+## Module 2: Document Verification
+
+Citizens upload a PNG, JPG or PDF. CivicAI reads it with OCR, pulls out labelled
+fields, and checks them against the rules of the relevant scheme. **No document
+text is sent to Groq** — the decision is fully rule-based.
+
+```
+upload (PNG / JPG / PDF)
+  -> validate type, size and file contents
+  -> store under data/documents/ with a server-generated name
+  -> OCR (Tesseract for images; PyMuPDF text or rendered pages for PDFs)
+  -> extract labelled fields (name, income, certificate number, ...)
+  -> match rules for the document type and its regulation
+  -> verified / rejected with the exact reason / needs officer review
+```
+
+A document is only **verified** when OCR produced usable text, the regulation is
+known, rules exist for its type, and every rule passed. OCR succeeding does not
+mean the document is verified. If a safe decision cannot be made, the document
+goes to officer review rather than being guessed.
+
+| Status | Meaning |
+|--------|---------|
+| `ocr_status=completed`, `verification_status=verified` | Text was read and every rule passed |
+| `ocr_status=completed`, `verification_status=rejected` | Text was read, a named rule failed |
+| `ocr_status=failed` or too little text | `verification_status=needs_review` |
+| Regulation unknown or no rules for the type | `verification_status=needs_review` |
+
+### Citizen endpoints
+
+```
+POST /api/v1/documents/upload     (citizen, multipart: file, document_type, optional regulation_id)
+GET  /api/v1/documents            (citizen)
+GET  /api/v1/documents/{id}       (citizen, own documents only)
+POST /api/v1/documents/{id}/verify  (citizen, re-run checks)
+```
+
+Ownership is `JWT → User.id → Citizen.user_id → GovernmentDocument.citizen_id`.
+Another citizen's document is reported as **not found**, not as forbidden.
+
+### Officer review
+
+Officer login accounts are still recognised by `User.role`. The ERD `Officer`
+row is not linked to `User` yet, so review actions record the reviewing
+`User.id` next to the extracted fields rather than as a foreign key.
+
+```
+GET  /api/v1/officers/documents/review
+POST /api/v1/officers/documents/{id}/approve
+POST /api/v1/officers/documents/{id}/reject
+```
+
+Officers and administrators may use these. Citizens receive `403`.
+
+Tesseract must be installed separately. On Windows, set `TESSERACT_CMD` in
+`.env` to the full path of `tesseract.exe`. Upload size is `MAX_UPLOAD_SIZE_MB`
+(default 10).
 
 ---
 

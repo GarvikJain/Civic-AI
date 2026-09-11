@@ -30,8 +30,12 @@ networkx>=3.2
 groq>=0.4
 
 # --- AI: document verification (OCR) ---
+# pytesseract needs the Tesseract engine installed separately; set
+# TESSERACT_CMD in .env if it is not on PATH.
 pytesseract>=0.3.10
 Pillow>=10.2
+# Reads text-based PDFs and renders scanned pages for OCR. No external binary.
+pymupdf>=1.24
 
 # --- AI: machine learning ---
 scikit-learn>=1.4

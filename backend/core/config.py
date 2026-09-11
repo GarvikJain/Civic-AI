@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     chroma_collection: str = "civicai_regulations"
     regulations_dir: str = "./data/regulations"
     upload_dir: str = "./data/uploads"
+    documents_dir: str = "./data/documents"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
@@ -60,8 +61,13 @@ class Settings(BaseSettings):
     # the LLM to guess.
     rag_min_score: float = 0.0
 
-    # --- OCR ---
+    # --- OCR / document verification ---
     tesseract_cmd: str = ""
+    # Largest document a citizen may upload.
+    max_upload_size_mb: int = 10
+    # Below this many characters of OCR text a document goes to officer review
+    # instead of being judged automatically.
+    ocr_min_text_length: int = 25
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

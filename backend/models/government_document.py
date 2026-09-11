@@ -31,11 +31,21 @@ class GovernmentDocument(Base):
     upload_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-    # Set by the OCR step: pending / done / failed.
+    # Set by the OCR step: pending / completed / failed.
     ocr_status: Mapped[str] = mapped_column(String(20), default="pending")
-    # Set by the verification step: pending / verified / rejected.
+    # Set by the verification step:
+    # pending / processing / verified / rejected / needs_review.
     verification_status: Mapped[str] = mapped_column(String(20), default="pending")
+    # Why a document was rejected, or why it needs review. Always the text of a
+    # rule that actually failed.
     rejection_reason: Mapped[str | None] = mapped_column(Text)
+
+    # The server-generated file name inside the documents directory. The
+    # citizen's original file name is never used, and this is never returned by
+    # the API, so no filesystem path is exposed.
+    stored_filename: Mapped[str | None] = mapped_column(String(120))
+    # Fields found by OCR, stored as JSON text so SQLite needs no extra type.
+    extracted_data: Mapped[str | None] = mapped_column(Text)
 
     citizen: Mapped["Citizen"] = relationship(back_populates="documents")
     regulation: Mapped["Regulation | None"] = relationship(back_populates="documents")

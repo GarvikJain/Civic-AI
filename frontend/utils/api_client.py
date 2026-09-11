@@ -40,6 +40,23 @@ def post(path: str, payload: dict, token: str | None = None) -> dict:
     return response.json()
 
 
+def upload(
+    path: str, files: dict, data: dict | None = None, token: str | None = None
+) -> dict:
+    """Send a multipart POST (a file upload) and return the JSON response."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.post(
+        _url(path),
+        files=files,
+        data=data or {},
+        headers=headers,
+        # OCR on a large scan takes longer than a normal API call.
+        timeout=TIMEOUT_SECONDS * 6,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def check_backend() -> dict | None:
     """Return the /health response, or None if the backend is unreachable."""
     try:
