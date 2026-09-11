@@ -381,6 +381,30 @@ Regenerate with:
 python -m ai_modules.queue_prediction.dataset_generator
 ```
 
+### Wait-time models (Phase 6B)
+
+Three regression models are trained on a **chronological** 70/15/15 split
+(oldest → train, then validation, newest → test). Preprocessing is a sklearn
+`ColumnTransformer`: one-hot encoding for `service_type` and `day_of_week`,
+standard scaling for `hour`, `queue_depth` and `historical_service_time`. The
+transformer is fitted on the training split only and stored inside the same
+joblib pipeline as the estimator.
+
+The model with the lowest **validation MAE** is selected. The test set is scored
+once afterwards and is not used to choose the model. A Logistic Regression
+classifier is trained separately to predict Short (<15 min) / Medium (15–30) /
+Long (>30) as a classification baseline — it is not the primary wait-time model.
+
+```powershell
+python -m ai_modules.queue_prediction.model_training
+```
+
+Artifacts (gitignored): `data/queue_prediction/models/`.  
+Metrics: `data/queue_prediction/model_evaluation.json`.
+
+These scores are from **synthetic development data**. They are not real
+office-performance figures.
+
 ---
 
 ## Database

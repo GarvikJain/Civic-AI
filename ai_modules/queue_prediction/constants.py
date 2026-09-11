@@ -80,3 +80,35 @@ LEAKAGE_COLUMNS: Final[tuple[str, ...]] = (
 
 DEFAULT_N_RECORDS: Final[int] = 15_000
 DEFAULT_SEED: Final[int] = 42
+
+TARGET: Final[str] = "actual_wait_time"
+
+CATEGORICAL_FEATURES: Final[tuple[str, ...]] = (
+    "service_type",
+    "day_of_week",
+)
+
+NUMERIC_FEATURES: Final[tuple[str, ...]] = (
+    "hour",
+    "queue_depth",
+    "historical_service_time",
+)
+
+TRAIN_RATIO: Final[float] = 0.70
+VALIDATION_RATIO: Final[float] = 0.15
+TEST_RATIO: Final[float] = 0.15
+
+MODEL_VERSION: Final[str] = "queue-v1"
+
+# Classification baseline buckets. Medium includes both 15 and 30 minutes.
+WAIT_CATEGORY_SHORT = "Short"
+WAIT_CATEGORY_MEDIUM = "Medium"
+WAIT_CATEGORY_LONG = "Long"
+WAIT_SHORT_MAX_MINUTES: Final[float] = 15.0
+WAIT_MEDIUM_MAX_MINUTES: Final[float] = 30.0
+
+REGRESSION_MODEL_NAMES: Final[tuple[str, ...]] = (
+    "RandomForestRegressor",
+    "KNeighborsRegressor",
+    "MLPRegressor",
+)

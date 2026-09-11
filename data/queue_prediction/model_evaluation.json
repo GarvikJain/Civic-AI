@@ -1,0 +1,227 @@
+{
+  "dataset": {
+    "name": "synthetic_queue_data.csv",
+    "label": "synthetic development data",
+    "disclaimer": "These metrics are from simulated queue data. They do not represent real government-office performance.",
+    "size": 15000,
+    "seed": 42,
+    "features": [
+      "service_type",
+      "day_of_week",
+      "hour",
+      "queue_depth",
+      "historical_service_time"
+    ],
+    "target": "actual_wait_time",
+    "split_ratios": {
+      "train": 0.7,
+      "validation": 0.15,
+      "test": 0.15
+    },
+    "splits": {
+      "train": {
+        "rows": 10500,
+        "start": "2024-01-01T08:38:00",
+        "end": "2024-09-11T09:00:00"
+      },
+      "validation": {
+        "rows": 2250,
+        "start": "2024-09-11T09:01:00",
+        "end": "2024-11-05T13:06:00"
+      },
+      "test": {
+        "rows": 2250,
+        "start": "2024-11-05T13:08:00",
+        "end": "2024-12-31T17:07:00"
+      }
+    }
+  },
+  "model_version": "queue-v1",
+  "trained_at": "2026-09-11T17:44:51.959626+00:00",
+  "python_version": "3.13.0",
+  "sklearn_version": "1.9.1",
+  "platform": "CPython",
+  "RandomForestRegressor": {
+    "hyperparameters": {
+      "n_estimators": 120,
+      "max_depth": 12,
+      "min_samples_leaf": 5,
+      "random_state": 42,
+      "n_jobs": 1
+    },
+    "train": {
+      "mae": 10.340793461121269,
+      "rmse": 14.012617866372171,
+      "r2": 0.8483310536058768,
+      "n": 10500,
+      "min_prediction": 1.8789440425129276,
+      "max_prediction": 175.10924768824577,
+      "negative_prediction_count": 0,
+      "predictions_finite": true
+    },
+    "validation": {
+      "mae": 12.459173549106431,
+      "rmse": 16.86738658500974,
+      "r2": 0.780104330853986,
+      "n": 2250,
+      "min_prediction": 2.8036568682900915,
+      "max_prediction": 171.55132612655586,
+      "negative_prediction_count": 0,
+      "predictions_finite": true
+    },
+    "overfitting_flag": false
+  },
+  "KNeighborsRegressor": {
+    "hyperparameters": {
+      "n_neighbors": 15,
+      "weights": "distance"
+    },
+    "train": {
+      "mae": 1.139032380952381,
+      "rmse": 4.267744501136886,
+      "r2": 0.9859312686899475,
+      "n": 10500,
+      "min_prediction": 0.0,
+      "max_prediction": 180.0,
+      "negative_prediction_count": 0,
+      "predictions_finite": true
+    },
+    "validation": {
+      "mae": 13.06517774801849,
+      "rmse": 17.7084116351815,
+      "r2": 0.757629200189565,
+      "n": 2250,
+      "min_prediction": 0.0,
+      "max_prediction": 180.0,
+      "negative_prediction_count": 0,
+      "predictions_finite": true
+    },
+    "overfitting_flag": true
+  },
+  "MLPRegressor": {
+    "hyperparameters": {
+      "hidden_layer_sizes": [
+        32,
+        16
+      ],
+      "max_iter": 400,
+      "early_stopping": true,
+      "validation_fraction": 0.1,
+      "random_state": 42,
+      "alpha": 0.001
+    },
+    "train": {
+      "mae": 12.488982265351822,
+      "rmse": 16.77269036656554,
+      "r2": 0.7826980758121547,
+      "n": 10500,
+      "min_prediction": 0.39414412221230555,
+      "max_prediction": 191.32932502241542,
+      "negative_prediction_count": 0,
+      "predictions_finite": true
+    },
+    "validation": {
+      "mae": 12.421590632565055,
+      "rmse": 16.596104214512582,
+      "r2": 0.7871207236420817,
+      "n": 2250,
+      "min_prediction": -1.234417082911802,
+      "max_prediction": 194.49258512792585,
+      "negative_prediction_count": 1,
+      "predictions_finite": true
+    },
+    "overfitting_flag": false
+  },
+  "selected_model": "MLPRegressor",
+  "selection_reason": "MLPRegressor had the lowest validation MAE (12.422 minutes). RMSE and R\u00b2 were supporting metrics. The held-out test set was not used to choose the model.",
+  "test": {
+    "mae": 12.810114910389336,
+    "rmse": 17.211270984108463,
+    "r2": 0.7699303687539667,
+    "n": 2250,
+    "min_prediction": 0.26866057305022506,
+    "max_prediction": 185.18838390057616,
+    "negative_prediction_count": 0,
+    "predictions_finite": true
+  },
+  "LogisticRegression": {
+    "hyperparameters": {
+      "max_iter": 500,
+      "class_weight": "balanced",
+      "random_state": 42
+    },
+    "categories": {
+      "Short": "< 15 minutes",
+      "Medium": "15\u201330 minutes inclusive",
+      "Long": "> 30 minutes"
+    },
+    "train": {
+      "accuracy": 0.8216190476190476,
+      "precision_macro": 0.6588522524507434,
+      "recall_macro": 0.7687403492895939,
+      "f1_macro": 0.6984891070999654,
+      "labels": [
+        "Short",
+        "Medium",
+        "Long"
+      ],
+      "confusion_matrix": [
+        [
+          507,
+          135,
+          3
+        ],
+        [
+          422,
+          1116,
+          145
+        ],
+        [
+          26,
+          1142,
+          7004
+        ]
+      ],
+      "n": 10500
+    },
+    "validation": {
+      "accuracy": 0.8284444444444444,
+      "precision_macro": 0.674537736165643,
+      "recall_macro": 0.7692477132957909,
+      "f1_macro": 0.71048741112799,
+      "labels": [
+        "Short",
+        "Medium",
+        "Long"
+      ],
+      "confusion_matrix": [
+        [
+          121,
+          33,
+          2
+        ],
+        [
+          86,
+          240,
+          35
+        ],
+        [
+          8,
+          222,
+          1503
+        ]
+      ],
+      "n": 2250
+    },
+    "class_counts_train": {
+      "Long": 8172,
+      "Medium": 1683,
+      "Short": 645
+    },
+    "class_counts_validation": {
+      "Long": 1733,
+      "Medium": 361,
+      "Short": 156
+    }
+  }
+}
