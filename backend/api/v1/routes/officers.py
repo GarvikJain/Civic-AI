@@ -21,7 +21,8 @@ from backend.schemas.document import (
     DocumentRead,
     DocumentReviewDecision,
 )
-from backend.services import document_service, officer_service
+from backend.schemas.feedback import FeedbackList
+from backend.services import document_service, feedback_service, officer_service
 from backend.services.document_service import (
     DocumentNotFoundError,
     DocumentNotReviewableError,
@@ -80,6 +81,21 @@ def approve_document(
         raise HTTPException(
             status_code=http_status.HTTP_409_CONFLICT, detail=str(error)
         )
+
+
+@router.get("/feedback/flagged", response_model=FeedbackList)
+def flagged_feedback(
+    current_user: User = ReviewingUser, db: Session = Depends(get_db)
+) -> FeedbackList:
+    """Negative + high-urgency feedback for the future productivity dashboard.
+
+    Phase 9 will render these rows. This endpoint only lists them.
+    """
+    del current_user
+    rows = feedback_service.list_flagged_feedback(db)
+    return FeedbackList(
+        feedbacks=[feedback_service.to_read_model(row) for row in rows]
+    )
 
 
 @router.post("/documents/{document_id}/reject", response_model=DocumentRead)

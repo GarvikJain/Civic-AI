@@ -5,9 +5,9 @@
 CivicAI helps citizens get answers, submit documents and find schemes without
 standing in queues, and helps government offices see where their service is slow.
 
-> **Status: project foundation only.** The folder structure, configuration,
-> database layer, authentication and API/UI skeletons work. The six AI modules
-> are placeholders and will be implemented one at a time.
+> **Status:** Phases 1–8 are implemented (auth, RAG, document verification,
+> queue prediction, eligibility nudge, and citizen feedback sentiment).
+> Module 4 (Officer Productivity Dashboard) is still a placeholder.
 
 ---
 
@@ -201,7 +201,11 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | POST | `/api/v1/eligibility/check` | citizen |
 | GET | `/api/v1/eligibility/checks` | signed-in user (own checks; staff may list all) |
 | GET | `/api/v1/eligibility/checks/{id}` | own check, or officer/administrator |
-| GET | `/api/v1/feedback/status` | Module 6 status |
+| GET | `/api/v1/feedback/status` | anyone |
+| POST | `/api/v1/feedback` | citizen (own completed appointment) |
+| GET | `/api/v1/feedback` | citizen (own); officer/administrator (all) |
+| GET | `/api/v1/feedback/{id}` | owner, or officer/administrator |
+| GET | `/api/v1/officers/feedback/flagged` | officer, administrator |
 
 ---
 
@@ -498,6 +502,46 @@ not change a passing criteria result to ineligible.
 
 ---
 
+## Module 6: Citizen Feedback Sentiment
+
+After a **completed** appointment, a citizen may submit free-text comments.
+A **local lexicon and rule engine** classifies sentiment (`positive` /
+`neutral` / `negative`) and urgency (`low` / `medium` / `high`). This is not a
+transformer or LLM. Comments are **never sent to Groq**.
+
+```
+citizen comments
+        ↓
+local sentiment lexicon (thresholds ±0.8)
+        ↓
+local urgency phrase matcher
+        ↓
+escalation_required = negative AND high
+        ↓
+Feedback row (existing table)
+```
+
+Escalation is derived from the two labels; the client cannot set sentiment,
+urgency, escalation, `citizen_id`, or `date_submitted`. Feedback does not
+block appointments or other services.
+
+Ownership uses the same chain as documents and eligibility:
+`JWT User.id` → `Citizen.user_id` → `Citizen.citizen_id` → `Appointment.citizen_id`.
+
+Officers and administrators can list `GET /api/v1/officers/feedback/flagged`
+(negative + high urgency) for the future productivity dashboard. The dashboard
+UI is not part of this phase.
+
+Details and limitations: `ai_modules/feedback_sentiment/README.md`.
+
+```powershell
+# POST /api/v1/feedback
+# GET  /api/v1/feedback
+# GET  /api/v1/officers/feedback/flagged
+```
+
+---
+
 ## Database
 
 The schema follows the CivicAI ER diagram. ERD field names such as `CitizenID`
@@ -548,4 +592,3 @@ pytest
 ## Next steps
 
 1. Module 4 - Officer Productivity Dashboard
-2. Module 6 - Citizen Feedback Sentiment Analysis

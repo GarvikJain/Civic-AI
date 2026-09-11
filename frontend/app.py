@@ -28,8 +28,9 @@ st.divider()
 
 st.subheader("Modules")
 st.write(
-    "Use the sidebar to open a module. None of them are implemented yet - "
-    "this is the project foundation only."
+    "Use the sidebar to open a module. Regulation answers, document checks, "
+    "queue prediction, eligibility screening and citizen feedback are available. "
+    "The officer productivity dashboard is still a later phase."
 )
 
 modules = [
