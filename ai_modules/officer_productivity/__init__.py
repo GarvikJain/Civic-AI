@@ -1,7 +1,6 @@
-"""Officer Productivity Dashboard (not implemented yet).
+"""Officer Productivity Dashboard.
 
-Planned pipeline:
-1. Aggregate applications handled per officer over a date range.
-2. Compute metrics such as average handling time and pending backlog.
-3. Return the numbers the Streamlit dashboard will chart.
+Phase 9 does **not** train a model and does **not** call Groq. The dashboard
+is SQL aggregation over live CivicAI tables, implemented in
+`backend/services/officer_service.py`.
 """

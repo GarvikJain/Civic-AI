@@ -5,9 +5,9 @@
 CivicAI helps citizens get answers, submit documents and find schemes without
 standing in queues, and helps government offices see where their service is slow.
 
-> **Status:** Phases 1–8 are implemented (auth, RAG, document verification,
-> queue prediction, eligibility nudge, and citizen feedback sentiment).
-> Module 4 (Officer Productivity Dashboard) is still a placeholder.
+> **Status:** Phases 1–9 are implemented (auth, RAG, document verification,
+> queue prediction, eligibility nudge, citizen feedback sentiment, and the
+> officer productivity dashboard).
 
 ---
 
@@ -183,7 +183,8 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | GET | `/api/v1/auth/me` | any signed-in user |
 | POST | `/api/v1/auth/users` | administrator |
 | GET | `/api/v1/citizens/dashboard` | citizen |
-| GET | `/api/v1/officers/dashboard` | officer, administrator |
+| GET | `/api/v1/officers/dashboard` | officer, administrator (same payload as summary) |
+| GET | `/api/v1/officers/dashboard/summary` | officer, administrator |
 | POST | `/api/v1/regulations` | administrator |
 | GET | `/api/v1/regulations/status` | Module 1 status |
 | GET | `/api/v1/documents/status` | anyone |
@@ -195,7 +196,7 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | POST | `/api/v1/officers/documents/{id}/approve` | officer, administrator |
 | POST | `/api/v1/officers/documents/{id}/reject` | officer, administrator |
 | GET | `/api/v1/queue/status` | Module 3 status |
-| GET | `/api/v1/officers/status` | Module 4 status |
+| GET | `/api/v1/officers/status` | anyone |
 | GET | `/api/v1/eligibility/status` | anyone |
 | GET | `/api/v1/eligibility/questionnaire/{regulation_id}` | citizen, officer, administrator |
 | POST | `/api/v1/eligibility/check` | citizen |
@@ -529,8 +530,8 @@ Ownership uses the same chain as documents and eligibility:
 `JWT User.id` → `Citizen.user_id` → `Citizen.citizen_id` → `Appointment.citizen_id`.
 
 Officers and administrators can list `GET /api/v1/officers/feedback/flagged`
-(negative + high urgency) for the future productivity dashboard. The dashboard
-UI is not part of this phase.
+(negative + high urgency). The Officer Productivity Dashboard also embeds
+those rows in `GET /api/v1/officers/dashboard/summary`.
 
 Details and limitations: `ai_modules/feedback_sentiment/README.md`.
 
@@ -538,6 +539,43 @@ Details and limitations: `ai_modules/feedback_sentiment/README.md`.
 # POST /api/v1/feedback
 # GET  /api/v1/feedback
 # GET  /api/v1/officers/feedback/flagged
+```
+
+---
+
+## Module 4: Officer Productivity Dashboard
+
+Officers and administrators see **live operational analytics** aggregated from
+existing CivicAI tables. This is not a new ML model and does **not** call Groq.
+
+```
+live Appointment / GovernmentDocument / CitizenQuery / Feedback rows
+        ↓
+SQL aggregation (office-timezone period + optional service_type)
+        ↓
+GET /api/v1/officers/dashboard/summary
+        ↓
+Streamlit officer dashboard
+```
+
+Included:
+
+- document verification counts and top rejection reasons
+- queue volume, predicted vs actual wait, mean absolute error (actual wait
+  must be non-null)
+- citizen query volume by regulation/scheme (no topic NLP)
+- feedback sentiment/urgency, service breakdown, and flagged (negative + high)
+- the existing document-review queue
+
+Citizens receive **403**. Per-officer handling totals are not reported because
+the live queue API does not assign `Appointment.officer_id`. The synthetic
+queue CSV is not used.
+
+Details: `ai_modules/officer_productivity/README.md`.
+
+```powershell
+# GET /api/v1/officers/dashboard/summary
+# GET /api/v1/officers/dashboard
 ```
 
 ---
@@ -586,9 +624,3 @@ The SQLite file is written to `data/civicai.db`.
 ```powershell
 pytest
 ```
-
----
-
-## Next steps
-
-1. Module 4 - Officer Productivity Dashboard

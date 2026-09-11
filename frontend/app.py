@@ -29,8 +29,8 @@ st.divider()
 st.subheader("Modules")
 st.write(
     "Use the sidebar to open a module. Regulation answers, document checks, "
-    "queue prediction, eligibility screening and citizen feedback are available. "
-    "The officer productivity dashboard is still a later phase."
+    "queue prediction, eligibility screening, citizen feedback and the officer "
+    "productivity dashboard are available."
 )
 
 modules = [

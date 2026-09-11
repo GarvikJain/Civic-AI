@@ -46,8 +46,8 @@ else:
             st.error("Only citizens can submit feedback for their own appointments.")
             st.caption(
                 "Officers and administrators can read flagged items from "
-                "`GET /api/v1/officers/feedback/flagged`. The productivity "
-                "dashboard arrives in a later phase."
+                "`GET /api/v1/officers/feedback/flagged` and the Officer "
+                "Productivity Dashboard."
             )
         else:
             st.error(describe_error(error))

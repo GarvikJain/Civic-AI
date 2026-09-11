@@ -1,13 +1,15 @@
 """Officer endpoints.
 
-Module 4 (the productivity dashboard) is still a placeholder. The document
-review endpoints below are the minimal officer workflow added in Phase 5.
+Module 4 is the productivity dashboard: SQL aggregations over live CivicAI
+records for officer and administrator accounts. Document review and flagged
+feedback remain available on the same router.
 
 Officer accounts are recognised by User.role, because Officer profile rows are
 not linked to login accounts yet.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.orm import Session
 
 from backend.api.deps import require_role
@@ -22,11 +24,13 @@ from backend.schemas.document import (
     DocumentReviewDecision,
 )
 from backend.schemas.feedback import FeedbackList
+from backend.schemas.officer import DashboardSummary
 from backend.services import document_service, feedback_service, officer_service
 from backend.services.document_service import (
     DocumentNotFoundError,
     DocumentNotReviewableError,
 )
+from backend.services.officer_service import InvalidDashboardFilterError
 
 router = APIRouter(prefix="/officers", tags=["officer-productivity"])
 
@@ -40,14 +44,39 @@ def status() -> MessageResponse:
     return officer_service.get_status()
 
 
-@router.get("/dashboard", response_model=MessageResponse)
-def dashboard(current_user: User = ReviewingUser) -> MessageResponse:
-    """The productivity dashboard. Citizens must not be able to open it."""
-    return MessageResponse(
-        module="Officer Productivity Dashboard",
-        status="not_implemented",
-        message=f"Signed in as {current_user.email}. Metrics come later.",
-    )
+def _summary_or_422(
+    db: Session, period: str, service_type: str | None
+) -> DashboardSummary:
+    try:
+        return officer_service.build_dashboard_summary(
+            db, period=period, service_type=service_type
+        )
+    except InvalidDashboardFilterError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+
+@router.get("/dashboard/summary", response_model=DashboardSummary)
+def dashboard_summary(
+    current_user: User = ReviewingUser,
+    db: Session = Depends(get_db),
+    period: str = Query(default="all"),
+    service_type: str | None = Query(default=None),
+) -> DashboardSummary:
+    """Aggregated officer analytics. Citizens must not be able to open it."""
+    del current_user
+    return _summary_or_422(db, period, service_type)
+
+
+@router.get("/dashboard", response_model=DashboardSummary)
+def dashboard(
+    current_user: User = ReviewingUser,
+    db: Session = Depends(get_db),
+    period: str = Query(default="all"),
+    service_type: str | None = Query(default=None),
+) -> DashboardSummary:
+    """Same payload as /dashboard/summary, kept for existing clients."""
+    del current_user
+    return _summary_or_422(db, period, service_type)
 
 
 @router.get("/documents/review", response_model=DocumentList)
@@ -87,10 +116,7 @@ def approve_document(
 def flagged_feedback(
     current_user: User = ReviewingUser, db: Session = Depends(get_db)
 ) -> FeedbackList:
-    """Negative + high-urgency feedback for the future productivity dashboard.
-
-    Phase 9 will render these rows. This endpoint only lists them.
-    """
+    """Negative + high-urgency feedback for the officer dashboard."""
     del current_user
     rows = feedback_service.list_flagged_feedback(db)
     return FeedbackList(

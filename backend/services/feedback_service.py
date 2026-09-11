@@ -7,6 +7,8 @@ external API. Escalation is derived from those labels and is not stored.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -151,8 +153,19 @@ def list_visible_feedback(db: Session, user: User) -> list[Feedback]:
     )
 
 
-def list_flagged_feedback(db: Session) -> list[Feedback]:
-    """Negative + high urgency rows for the Phase 9 officer dashboard."""
+def list_flagged_feedback(
+    db: Session,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    service_type: str | None = None,
+    limit: int | None = None,
+) -> list[Feedback]:
+    """Negative + high urgency rows for the officer dashboard.
+
+    Escalation is the Phase 8 rule: sentiment == negative AND urgency == high.
+    Optional time and service filters are used by the dashboard summary.
+    """
     query = (
         select(Feedback)
         .options(joinedload(Feedback.appointment))
@@ -162,4 +175,15 @@ def list_flagged_feedback(db: Session) -> list[Feedback]:
         )
         .order_by(Feedback.date_submitted.desc(), Feedback.feedback_id.desc())
     )
+    if since is not None:
+        query = query.where(Feedback.date_submitted >= since)
+    if until is not None:
+        query = query.where(Feedback.date_submitted < until)
+    if service_type is not None:
+        matching = select(Appointment.appointment_id).where(
+            Appointment.service_type == service_type
+        )
+        query = query.where(Feedback.appointment_id.in_(matching))
+    if limit is not None:
+        query = query.limit(limit)
     return list(db.scalars(query).unique().all())

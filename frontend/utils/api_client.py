@@ -22,10 +22,12 @@ def _url(path: str) -> str:
     return f"{BACKEND_URL}{API_PREFIX}{path}"
 
 
-def get(path: str, token: str | None = None) -> dict:
+def get(path: str, token: str | None = None, params: dict | None = None) -> dict:
     """Send a GET request and return the JSON response."""
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    response = requests.get(_url(path), headers=headers, timeout=TIMEOUT_SECONDS)
+    response = requests.get(
+        _url(path), headers=headers, params=params, timeout=TIMEOUT_SECONDS
+    )
     response.raise_for_status()
     return response.json()
 
