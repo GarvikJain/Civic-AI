@@ -66,9 +66,18 @@ def refresh_knowledge_graph(db: Session, pipeline=None) -> None:
 def answer_citizen_query(db: Session, user: User, query_text: str) -> RegulationAnswer:
     """Run the RAG pipeline for a question and record it.
 
-    The asking citizen comes from the authenticated user, never from the
-    request body.
+    The asking citizen is found through User.id -> Citizen.user_id, so the
+    request body can never choose whose query this is.
     """
+    # Only citizens have a profile to file a query against. Officer and
+    # administrator questions are answered but not stored.
+    #
+    # The profile is resolved before the pipeline runs, so a missing profile
+    # fails immediately instead of after an LLM call.
+    citizen = None
+    if user.role == Role.CITIZEN.value:
+        citizen = citizen_service.get_citizen_for_user(db, user.id)
+
     pipeline = get_rag_pipeline()
 
     # Build the graph once per process, from the current regulations.
@@ -77,10 +86,7 @@ def answer_citizen_query(db: Session, user: User, query_text: str) -> Regulation
 
     result = pipeline.answer(query_text)
 
-    # Only citizens have a citizen profile to attach a query to. Officer and
-    # administrator questions are answered but not stored.
-    if user.role == Role.CITIZEN.value:
-        citizen = citizen_service.get_or_create_citizen(db, user)
+    if citizen is not None:
         db.add(
             CitizenQuery(
                 citizen_id=citizen.citizen_id,

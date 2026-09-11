@@ -20,8 +20,9 @@ from backend.core.roles import Role
 from backend.models.citizen import Citizen
 from backend.models.citizen_query import CitizenQuery
 from backend.models.regulation import Regulation
+from backend.models.user import User
 from backend.services import regulation_service
-from tests.factories import citizen_header, role_header
+from tests.factories import add_user, auth_header, citizen_header, role_header
 
 QUERY_URL = "/api/v1/regulations/query"
 
@@ -143,12 +144,14 @@ def test_the_question_and_answer_are_stored(client, session_factory, stub_pipeli
 def test_the_stored_query_belongs_to_the_signed_in_citizen(
     client, session_factory, stub_pipeline
 ):
+    """Ownership is resolved through User.id -> Citizen.user_id."""
     headers = citizen_header(client, "owner@example.com")
     client.post(QUERY_URL, json={"query": "Which documents do I need?"}, headers=headers)
 
     db = session_factory()
     try:
-        citizen = db.scalar(select(Citizen).where(Citizen.email == "owner@example.com"))
+        user = db.scalar(select(User).where(User.email == "owner@example.com"))
+        citizen = db.scalar(select(Citizen).where(Citizen.user_id == user.id))
         query = db.scalar(select(CitizenQuery))
         assert citizen is not None
         assert query.citizen_id == citizen.citizen_id
@@ -163,12 +166,13 @@ def test_ownership_ignores_a_citizen_id_in_the_request_body(
     headers = citizen_header(client, "owner@example.com")
 
     # Another citizen exists, and the request tries to blame them.
+    add_user(session_factory, "other@example.com", Role.CITIZEN)
     db = session_factory()
     try:
-        other = Citizen(name="Someone Else", email="other@example.com", password="!")
-        db.add(other)
-        db.commit()
-        other_id = other.citizen_id
+        other_user = db.scalar(select(User).where(User.email == "other@example.com"))
+        other_id = db.scalar(
+            select(Citizen).where(Citizen.user_id == other_user.id)
+        ).citizen_id
     finally:
         db.close()
 
@@ -180,12 +184,31 @@ def test_ownership_ignores_a_citizen_id_in_the_request_body(
 
     db = session_factory()
     try:
-        owner = db.scalar(select(Citizen).where(Citizen.email == "owner@example.com"))
+        owner_user = db.scalar(select(User).where(User.email == "owner@example.com"))
+        owner = db.scalar(select(Citizen).where(Citizen.user_id == owner_user.id))
         query = db.scalar(select(CitizenQuery))
         assert query.citizen_id == owner.citizen_id
         assert query.citizen_id != other_id
     finally:
         db.close()
+
+
+def test_a_citizen_without_a_profile_gets_a_controlled_error(
+    client, session_factory, stub_pipeline
+):
+    """An inconsistent account is reported, not silently repaired."""
+    add_user(session_factory, "orphan@example.com", Role.CITIZEN, with_profile=False)
+    headers = auth_header(client, "orphan@example.com")
+
+    response = client.post(
+        QUERY_URL, json={"query": "Which documents do I need?"}, headers=headers
+    )
+
+    assert response.status_code == 409
+    assert "citizen profile" in response.json()["detail"].lower()
+    # The pipeline is never run for an account we cannot attribute the query to.
+    assert stub_pipeline.questions == []
+    assert stored_queries(session_factory) == []
 
 
 def test_a_relevant_regulation_is_linked_when_there_is_one(

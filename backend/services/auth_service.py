@@ -10,6 +10,7 @@ from backend.core.roles import Role
 from backend.core.security import hash_password, verify_password
 from backend.models.user import User
 from backend.schemas.user import UserRegister
+from backend.services.citizen_service import build_citizen_profile
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -24,6 +25,9 @@ def create_user(
 
     The role is passed in by the caller rather than taken from the request
     body, so a user can never choose their own role.
+
+    A user with the citizen role also gets their citizen profile, created in
+    the same transaction so an account can never exist without one.
     """
     user = User(
         full_name=data.full_name,
@@ -33,6 +37,10 @@ def create_user(
         is_active=True,
     )
     db.add(user)
+
+    if user.role == Role.CITIZEN.value:
+        db.add(build_citizen_profile(user))
+
     db.commit()
     db.refresh(user)
     return user

@@ -5,12 +5,16 @@ which parts of the platform a user may reach: citizen, officer or administrator.
 """
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.roles import Role
 from backend.db.base import Base
+
+if TYPE_CHECKING:
+    from backend.models.citizen import Citizen
 
 
 class User(Base):
@@ -25,6 +29,12 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    # A user with role "citizen" has exactly one citizen profile. Officers and
+    # administrators have none.
+    citizen: Mapped["Citizen | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

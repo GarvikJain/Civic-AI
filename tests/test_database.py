@@ -23,6 +23,7 @@ from backend.models import (
     GovernmentDocument,
     Officer,
     Regulation,
+    User,
 )
 
 # The eight entities from the CivicAI ER diagram.
@@ -39,6 +40,8 @@ ERD_TABLES = [
 
 # table -> {column: referenced table}
 EXPECTED_FOREIGN_KEYS = {
+    # A citizen profile belongs to exactly one login account.
+    "citizens": {"user_id": "users"},
     "appointments": {"citizen_id": "citizens", "officer_id": "officers"},
     "government_documents": {"citizen_id": "citizens", "regulation_id": "regulations"},
     "citizen_queries": {"citizen_id": "citizens", "regulation_id": "regulations"},
@@ -78,11 +81,21 @@ def session(engine):
 
 
 def make_citizen(session, email="citizen@example.com") -> Citizen:
+    """A citizen profile and the login account it belongs to."""
+    user = User(
+        full_name="Test Citizen",
+        email=email,
+        hashed_password="not-a-real-hash",
+        role="citizen",
+    )
+    session.add(user)
+    session.flush()
+
     citizen = Citizen(
+        user_id=user.id,
         name="Test Citizen",
         email=email,
         phone="9876543210",
-        password="hashed-password",
         address="12 Main Road, Pune",
     )
     session.add(citizen)

@@ -1,8 +1,13 @@
-"""Linking an authenticated user to their citizen profile.
+"""Citizen profiles.
 
-Phase 3 made User the single login identity, while the ERD keeps Citizen as the
-citizen's profile record. Until those are unified, a citizen's profile row is
-looked up (or created) from the authenticated user's email.
+User is the login identity; Citizen is the profile that owns a citizen's
+appointments, documents, queries, eligibility checks and feedback.
+
+Ownership is resolved through the explicit link:
+
+    JWT -> User.id -> Citizen.user_id -> Citizen.citizen_id
+
+Email is never used to decide who owns what.
 """
 
 from sqlalchemy import select
@@ -11,24 +16,43 @@ from sqlalchemy.orm import Session
 from backend.models.citizen import Citizen
 from backend.models.user import User
 
-# Citizen.password exists in the ERD but is never used for logging in, because
-# authentication lives on User. This marker is not a valid bcrypt hash, so it
-# can never be used to authenticate, and no real hash is duplicated here.
-UNUSABLE_PASSWORD = "!"
+
+class CitizenProfileMissingError(Exception):
+    """A citizen account has no profile row.
+
+    A profile is created during registration, so this means the data is
+    inconsistent. It is reported rather than quietly repaired, because
+    creating a profile mid-request would hide the real problem.
+    """
 
 
-def get_or_create_citizen(db: Session, user: User) -> Citizen:
-    """Return the citizen profile for this user, creating it if needed."""
-    citizen = db.scalar(select(Citizen).where(Citizen.email == user.email))
-    if citizen is not None:
-        return citizen
+def build_citizen_profile(user: User) -> Citizen:
+    """Create the profile row for a newly registered citizen.
 
-    citizen = Citizen(
+    The caller commits, so the user and the profile are saved together.
+    """
+    return Citizen(
+        user=user,
         name=user.full_name,
         email=user.email,
-        password=UNUSABLE_PASSWORD,
+        # Authentication uses User.hashed_password; no credential is copied.
+        password=None,
     )
-    db.add(citizen)
-    db.commit()
-    db.refresh(citizen)
+
+
+def find_citizen_for_user(db: Session, user_id: int) -> Citizen | None:
+    """Return the citizen profile linked to this user, or None."""
+    return db.scalar(select(Citizen).where(Citizen.user_id == user_id))
+
+
+def get_citizen_for_user(db: Session, user_id: int) -> Citizen:
+    """Return the citizen profile linked to this user.
+
+    Raises CitizenProfileMissingError if there is none.
+    """
+    citizen = find_citizen_for_user(db, user_id)
+    if citizen is None:
+        raise CitizenProfileMissingError(
+            "No citizen profile is linked to this account."
+        )
     return citizen

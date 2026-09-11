@@ -22,6 +22,7 @@ from backend.schemas.regulation import (
     RegulationRead,
 )
 from backend.services import regulation_service
+from backend.services.citizen_service import CitizenProfileMissingError
 
 router = APIRouter(prefix="/regulations", tags=["regulation-rag"])
 
@@ -58,6 +59,11 @@ def query_regulations(
     """
     try:
         return regulation_service.answer_citizen_query(db, current_user, data.query)
+    except CitizenProfileMissingError as error:
+        # The account is authenticated but its citizen profile is missing.
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT, detail=str(error)
+        )
     except RagError as error:
         # A missing model or API key must not turn into a guessed answer.
         raise HTTPException(
