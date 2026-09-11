@@ -533,6 +533,7 @@ def test_frontend_dashboard_uses_backend_and_hides_from_citizens():
     assert "officers and administrators" in text.lower()
     assert "Flagged feedback" in text
     assert "Document verification" in text
+    assert "Officer handling statistics" in text
     assert "st.bar_chart" in text
     assert "citizen_id" not in text.lower() or "citizen {" in text
     # Review queue may mention citizen_id for the existing officer workflow.

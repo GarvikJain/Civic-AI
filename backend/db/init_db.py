@@ -27,6 +27,15 @@ _ELIGIBILITY_NEW_COLUMNS = {
     "created_at": "DATETIME",
 }
 
+_OFFICER_NEW_COLUMNS = {
+    "user_id": "INTEGER",
+}
+
+_DOCUMENT_NEW_COLUMNS = {
+    "reviewed_by_user_id": "INTEGER",
+    "reviewed_at": "DATETIME",
+}
+
 
 def _add_missing_columns(target_engine, table: str, columns: dict[str, str]) -> None:
     inspector = inspect(target_engine)
@@ -45,11 +54,32 @@ def _add_missing_appointment_columns(target_engine) -> None:
     _add_missing_columns(target_engine, "appointments", _APPOINTMENT_NEW_COLUMNS)
 
 
+def _ensure_unique_index(
+    target_engine, table: str, column: str, index_name: str
+) -> None:
+    """Add a unique index when an older SQLite file gained a column via ALTER."""
+    inspector = inspect(target_engine)
+    if table not in inspector.get_table_names():
+        return
+    for index in inspector.get_indexes(table):
+        if index.get("name") == index_name:
+            return
+        if index.get("unique") and index.get("column_names") == [column]:
+            return
+    with target_engine.begin() as connection:
+        connection.execute(
+            text(f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table} ({column})")
+        )
+
+
 def init_db() -> None:
     """Create every table that does not exist yet, then add new columns."""
     Base.metadata.create_all(bind=engine)
     _add_missing_appointment_columns(engine)
     _add_missing_columns(engine, "eligibility_checks", _ELIGIBILITY_NEW_COLUMNS)
+    _add_missing_columns(engine, "officers", _OFFICER_NEW_COLUMNS)
+    _add_missing_columns(engine, "government_documents", _DOCUMENT_NEW_COLUMNS)
+    _ensure_unique_index(engine, "officers", "user_id", "ix_officers_user_id")
 
 
 if __name__ == "__main__":

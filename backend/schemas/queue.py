@@ -57,6 +57,7 @@ class AppointmentRead(BaseModel):
     queue_joined_at: datetime | None = None
     service_started_at: datetime | None = None
     service_completed_at: datetime | None = None
+    officer_id: int | None = None
 
 
 class QueuePredictionRead(BaseModel):

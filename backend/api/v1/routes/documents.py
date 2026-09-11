@@ -23,6 +23,7 @@ from backend.services import document_service
 from backend.services.citizen_service import CitizenProfileMissingError
 from backend.services.document_service import (
     DocumentNotFoundError,
+    DocumentNotReviewableError,
     RegulationNotFoundError,
 )
 
@@ -89,7 +90,7 @@ def list_documents(
             status_code=http_status.HTTP_409_CONFLICT, detail=str(error)
         )
     return DocumentList(
-        documents=[document_service.to_read_model(document) for document in documents]
+        documents=[document_service.to_read_model(document, db) for document in documents]
     )
 
 
@@ -110,7 +111,7 @@ def get_document(
         raise HTTPException(
             status_code=http_status.HTTP_409_CONFLICT, detail=str(error)
         )
-    return document_service.to_read_model(document)
+    return document_service.to_read_model(document, db)
 
 
 @router.post("/{document_id}/verify", response_model=DocumentRead)
@@ -123,6 +124,10 @@ def verify_document(
     except DocumentNotFoundError as error:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND, detail=str(error)
+        )
+    except DocumentNotReviewableError as error:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT, detail=str(error)
         )
     except CitizenProfileMissingError as error:
         raise HTTPException(

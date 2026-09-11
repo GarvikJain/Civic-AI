@@ -33,6 +33,16 @@ def status() -> MessageResponse:
     return regulation_service.get_status()
 
 
+@router.get("", response_model=list[RegulationRead])
+def list_regulations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[Regulation]:
+    """Schemes registered in CivicAI. Any signed-in role may read them."""
+    del current_user
+    return regulation_service.list_regulations(db)
+
+
 @router.post(
     "",
     response_model=RegulationRead,

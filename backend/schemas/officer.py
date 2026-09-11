@@ -114,6 +114,19 @@ class DashboardOverview(BaseModel):
     escalated_feedback: int = 0
 
 
+class OfficerProductivity(BaseModel):
+    """Operational totals for one officer profile. Not a quality ranking."""
+
+    officer_id: int
+    name: str
+    appointments_handled: int = 0
+    appointments_completed: int = 0
+    average_actual_wait: float | None = None
+    documents_reviewed: int = 0
+    documents_approved: int = 0
+    documents_rejected: int = 0
+
+
 class DashboardSummary(BaseModel):
     """Aggregated officer/admin analytics for one period and optional service."""
 
@@ -127,5 +140,6 @@ class DashboardSummary(BaseModel):
     queue: QueueAnalytics
     queries: QueryAnalytics
     feedback: FeedbackAnalytics
+    officer_stats: list[OfficerProductivity] = Field(default_factory=list)
     flagged_feedback: list[FlaggedFeedbackItem] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

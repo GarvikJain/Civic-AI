@@ -15,6 +15,7 @@ from backend.db.base import Base
 
 if TYPE_CHECKING:
     from backend.models.citizen import Citizen
+    from backend.models.officer import Officer
 
 
 class User(Base):
@@ -32,8 +33,11 @@ class User(Base):
     )
 
     # A user with role "citizen" has exactly one citizen profile. Officers and
-    # administrators have none.
+    # administrators have an officer profile used for appointment attribution.
     citizen: Mapped["Citizen | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    officer: Mapped["Officer | None"] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 

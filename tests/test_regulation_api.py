@@ -298,7 +298,9 @@ def test_creating_a_regulation_is_still_administrator_only(client, session_facto
 
 def test_ingestion_is_administrator_only(client, session_factory, stub_pipeline):
     citizen = citizen_header(client)
+    officer = role_header(client, session_factory, Role.OFFICER)
     assert client.post("/api/v1/regulations/ingest", headers=citizen).status_code == 403
+    assert client.post("/api/v1/regulations/ingest", headers=officer).status_code == 403
     assert client.post("/api/v1/regulations/ingest").status_code == 401
     assert stub_pipeline.ingested == []
 
@@ -342,3 +344,18 @@ def test_the_status_endpoint_stays_public(client):
     response = client.get("/api/v1/regulations/status")
     assert response.status_code == 200
     assert response.json()["status"] == "available"
+
+
+def test_signed_in_users_can_list_regulations_but_guests_cannot(
+    client, session_factory
+):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    created = client.post("/api/v1/regulations", json=REGULATION, headers=admin)
+    assert created.status_code == 201
+    citizen = citizen_header(client, "reader@example.com")
+    officer = role_header(client, session_factory, Role.OFFICER)
+    for headers in (citizen, officer, admin):
+        response = client.get("/api/v1/regulations", headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json()[0]["scheme_name"] == REGULATION["scheme_name"]
+    assert client.get("/api/v1/regulations").status_code == 401

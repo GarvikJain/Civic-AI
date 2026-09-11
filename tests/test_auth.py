@@ -69,15 +69,22 @@ def add_user(session_factory, email, role, is_active=True) -> None:
     """Insert a user directly, for roles that cannot self-register."""
     db = session_factory()
     try:
-        db.add(
-            User(
-                full_name=f"Test {role.value}",
-                email=email,
-                hashed_password=hash_password(PASSWORD),
-                role=role.value,
-                is_active=is_active,
-            )
+        user = User(
+            full_name=f"Test {role.value}",
+            email=email,
+            hashed_password=hash_password(PASSWORD),
+            role=role.value,
+            is_active=is_active,
         )
+        db.add(user)
+        if role is Role.CITIZEN:
+            from backend.services.citizen_service import build_citizen_profile
+
+            db.add(build_citizen_profile(user))
+        elif role in (Role.OFFICER, Role.ADMINISTRATOR):
+            from backend.services.officer_profile import build_officer_profile
+
+            db.add(build_officer_profile(user))
         db.commit()
     finally:
         db.close()
@@ -348,6 +355,39 @@ def test_administrator_can_create_an_officer_account(client, session_factory):
         client.get("/api/v1/officers/dashboard", headers=officer_headers).status_code
         == 200
     )
+
+
+def test_officer_cannot_create_accounts(client, session_factory):
+    headers = header_for_role(client, session_factory, Role.OFFICER)
+    response = client.post(
+        "/api/v1/auth/users",
+        json={
+            "full_name": "Shadow Admin",
+            "email": "shadow-admin@example.com",
+            "password": PASSWORD,
+            "role": "administrator",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 403
+
+
+def test_inactive_user_token_cannot_call_protected_endpoints(client, session_factory):
+    add_user(session_factory, "later-disabled@example.com", Role.OFFICER)
+    headers = auth_header(client, "later-disabled@example.com")
+    assert client.get("/api/v1/officers/dashboard", headers=headers).status_code == 200
+
+    db = session_factory()
+    try:
+        user = db.scalar(select(User).where(User.email == "later-disabled@example.com"))
+        user.is_active = False
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/api/v1/officers/dashboard", headers=headers)
+    assert response.status_code == 403
+    assert "inactive" in response.json()["detail"].lower()
 
 
 def test_citizen_cannot_create_accounts(client):

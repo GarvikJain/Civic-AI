@@ -47,6 +47,15 @@ def show_document(document: dict) -> None:
     if document.get("rejection_reason"):
         st.markdown(f"**Reason:** {document['rejection_reason']}")
 
+    reviewer = document.get("reviewer_name")
+    reviewed_at = document.get("reviewed_at")
+    if reviewer or reviewed_at:
+        st.caption(
+            "Officer decision: "
+            + (reviewer or "recorded officer")
+            + (f" at {reviewed_at}" if reviewed_at else "")
+        )
+
     fields = document.get("extracted_fields") or {}
     if fields:
         st.markdown("**Details read from the document**")

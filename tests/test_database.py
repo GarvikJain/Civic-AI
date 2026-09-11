@@ -43,7 +43,12 @@ EXPECTED_FOREIGN_KEYS = {
     # A citizen profile belongs to exactly one login account.
     "citizens": {"user_id": "users"},
     "appointments": {"citizen_id": "citizens", "officer_id": "officers"},
-    "government_documents": {"citizen_id": "citizens", "regulation_id": "regulations"},
+    "officers": {"user_id": "users"},
+    "government_documents": {
+        "citizen_id": "citizens",
+        "regulation_id": "regulations",
+        "reviewed_by_user_id": "users",
+    },
     "citizen_queries": {"citizen_id": "citizens", "regulation_id": "regulations"},
     "eligibility_checks": {
         "citizen_id": "citizens",
@@ -320,3 +325,107 @@ def test_defaults_are_applied(session):
     assert document.verification_status == "pending"
     assert document.upload_date is not None
     assert document.rejection_reason is None
+
+
+def test_phase10_audit_and_officer_link_columns_exist(engine):
+    officer_cols = {column["name"] for column in inspect(engine).get_columns("officers")}
+    document_cols = {
+        column["name"] for column in inspect(engine).get_columns("government_documents")
+    }
+    assert "user_id" in officer_cols
+    assert "reviewed_by_user_id" in document_cols
+    assert "reviewed_at" in document_cols
+
+
+def test_officer_user_id_is_unique(session):
+    user = User(
+        full_name="Shared Staff",
+        email="shared-staff@example.com",
+        hashed_password="not-a-real-hash",
+        role="officer",
+    )
+    session.add(user)
+    session.flush()
+    session.add(
+        Officer(
+            user_id=user.id,
+            name="First Profile",
+            department="Revenue",
+            role="Officer",
+            email="first-profile@example.com",
+        )
+    )
+    session.flush()
+    session.add(
+        Officer(
+            user_id=user.id,
+            name="Second Profile",
+            department="Revenue",
+            role="Officer",
+            email="second-profile@example.com",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_officer_user_id_must_reference_a_user(session):
+    session.add(
+        Officer(
+            user_id=99999,
+            name="Ghost",
+            department="Revenue",
+            role="Officer",
+            email="ghost-officer@example.com",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_document_reviewer_must_reference_a_user(session):
+    citizen = make_citizen(session, "reviewer-fk@example.com")
+    session.add(
+        GovernmentDocument(
+            citizen_id=citizen.citizen_id,
+            document_type="Aadhaar",
+            reviewed_by_user_id=99999,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_fresh_sqlite_file_can_be_initialized(tmp_path):
+    """A new CivicAI database file can be created without the developer DB."""
+    from backend.db.init_db import (
+        _DOCUMENT_NEW_COLUMNS,
+        _ELIGIBILITY_NEW_COLUMNS,
+        _OFFICER_NEW_COLUMNS,
+        _add_missing_appointment_columns,
+        _add_missing_columns,
+        _ensure_unique_index,
+    )
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'fresh.db'}")
+    enable_sqlite_foreign_keys(engine)
+    Base.metadata.create_all(bind=engine)
+    _add_missing_appointment_columns(engine)
+    _add_missing_columns(engine, "eligibility_checks", _ELIGIBILITY_NEW_COLUMNS)
+    _add_missing_columns(engine, "officers", _OFFICER_NEW_COLUMNS)
+    _add_missing_columns(engine, "government_documents", _DOCUMENT_NEW_COLUMNS)
+    _ensure_unique_index(engine, "officers", "user_id", "ix_officers_user_id")
+
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    assert "users" in tables
+    assert "officers" in tables
+    assert "government_documents" in tables
+    officer_cols = {column["name"] for column in inspector.get_columns("officers")}
+    document_cols = {
+        column["name"] for column in inspector.get_columns("government_documents")
+    }
+    assert "user_id" in officer_cols
+    assert "reviewed_by_user_id" in document_cols
+    assert "reviewed_at" in document_cols
+    engine.dispose()

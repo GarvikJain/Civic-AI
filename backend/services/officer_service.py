@@ -29,6 +29,7 @@ from backend.models.appointment import Appointment
 from backend.models.citizen_query import CitizenQuery
 from backend.models.feedback import Feedback
 from backend.models.government_document import GovernmentDocument
+from backend.models.officer import Officer
 from backend.models.queue_prediction_record import QueuePredictionRecord
 from backend.models.regulation import Regulation
 from backend.schemas.common import MessageResponse
@@ -40,6 +41,7 @@ from backend.schemas.officer import (
     FeedbackAnalytics,
     FeedbackServiceBreakdown,
     FlaggedFeedbackItem,
+    OfficerProductivity,
     QueryAnalytics,
     QueueAnalytics,
     RecentQuery,
@@ -57,7 +59,7 @@ DASHBOARD_NOTES = [
     "CitizenQuery has no topic field; query frequency is grouped by regulation/scheme.",
     "Prediction error uses only queue_prediction_records with a non-null actual_wait_time. Missing actual wait is never treated as zero.",
     "Synthetic queue training CSV is not used. Figures come from live database rows.",
-    "Appointment.officer_id is not assigned by the live queue API, so per-officer handling totals are not available.",
+    "Officer appointment totals use Appointment.officer_id, set when staff start or complete service. Document review totals use GovernmentDocument.reviewed_by_user_id. Rejection counts are operational statistics, not a quality ranking.",
     "The service_type filter applies to appointments, wait records, feedback, and documents whose document_type matches. Regulation queries are not service-typed.",
 ]
 
@@ -509,6 +511,145 @@ def _feedback_analytics(
     )
 
 
+def _officer_productivity(
+    db: Session,
+    start: datetime | None,
+    end: datetime | None,
+    service_type: str | None,
+) -> list[OfficerProductivity]:
+    """Operational per-officer totals from attributed appointments and reviews."""
+    profiles = db.execute(
+        select(Officer.officer_id, Officer.user_id, Officer.name).where(
+            Officer.user_id.is_not(None)
+        )
+    ).all()
+    if not profiles:
+        return []
+
+    by_officer = {row.officer_id: row for row in profiles}
+    by_user = {row.user_id: row for row in profiles}
+
+    appointment_clauses = [
+        Appointment.officer_id.is_not(None),
+        *_time_clauses(Appointment.appointment_date, start, end),
+    ]
+    if service_type is not None:
+        appointment_clauses.append(Appointment.service_type == service_type)
+    handled_rows = db.execute(
+        select(
+            Appointment.officer_id,
+            func.count(),
+            func.sum(
+                case(
+                    (Appointment.status == queue_service.STATUS_COMPLETED, 1),
+                    else_=0,
+                )
+            ),
+        )
+        .where(*appointment_clauses)
+        .group_by(Appointment.officer_id)
+    ).all()
+    handled = {
+        officer_id: (int(total), int(completed or 0))
+        for officer_id, total, completed in handled_rows
+    }
+
+    wait_clauses = [
+        Appointment.officer_id.is_not(None),
+        QueuePredictionRecord.actual_wait_time.is_not(None),
+        *_time_clauses(Appointment.appointment_date, start, end),
+    ]
+    if service_type is not None:
+        wait_clauses.append(Appointment.service_type == service_type)
+    wait_rows = db.execute(
+        select(
+            Appointment.officer_id,
+            func.avg(QueuePredictionRecord.actual_wait_time),
+        )
+        .select_from(QueuePredictionRecord)
+        .join(
+            Appointment,
+            QueuePredictionRecord.appointment_id == Appointment.appointment_id,
+        )
+        .where(*wait_clauses)
+        .group_by(Appointment.officer_id)
+    ).all()
+    waits = {officer_id: _round(avg) for officer_id, avg in wait_rows}
+
+    document_clauses = [
+        GovernmentDocument.reviewed_by_user_id.is_not(None),
+        *_time_clauses(GovernmentDocument.reviewed_at, start, end),
+    ]
+    if service_type is not None:
+        document_clauses.append(GovernmentDocument.document_type == service_type)
+    document_rows = db.execute(
+        select(
+            GovernmentDocument.reviewed_by_user_id,
+            func.count(),
+            func.sum(
+                case(
+                    (
+                        GovernmentDocument.verification_status
+                        == VerificationStatus.VERIFIED.value,
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        GovernmentDocument.verification_status
+                        == VerificationStatus.REJECTED.value,
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+        )
+        .where(*document_clauses)
+        .group_by(GovernmentDocument.reviewed_by_user_id)
+    ).all()
+
+    stats: dict[int, OfficerProductivity] = {}
+
+    def ensure(officer_id: int) -> OfficerProductivity | None:
+        profile = by_officer.get(officer_id)
+        if profile is None:
+            return None
+        item = stats.get(officer_id)
+        if item is None:
+            item = OfficerProductivity(officer_id=officer_id, name=profile.name)
+            stats[officer_id] = item
+        return item
+
+    for officer_id, (total, completed) in handled.items():
+        item = ensure(officer_id)
+        if item is None:
+            continue
+        item.appointments_handled = total
+        item.appointments_completed = completed
+        item.average_actual_wait = waits.get(officer_id)
+
+    for officer_id, average_wait in waits.items():
+        item = ensure(officer_id)
+        if item is not None and item.average_actual_wait is None:
+            item.average_actual_wait = average_wait
+
+    for user_id, total, approved, rejected in document_rows:
+        profile = by_user.get(user_id)
+        if profile is None:
+            continue
+        item = ensure(profile.officer_id)
+        if item is None:
+            continue
+        item.documents_reviewed = int(total)
+        item.documents_approved = int(approved or 0)
+        item.documents_rejected = int(rejected or 0)
+
+    return sorted(stats.values(), key=lambda row: (row.name.lower(), row.officer_id))
+
+
 def _flagged_items(
     db: Session,
     start: datetime | None,
@@ -559,6 +700,7 @@ def build_dashboard_summary(
     queries = _query_analytics(db, start, end)
     feedback = _feedback_analytics(db, start, end, normalized_service)
     flagged = _flagged_items(db, start, end, normalized_service)
+    officer_stats = _officer_productivity(db, start, end, normalized_service)
 
     return DashboardSummary(
         module="Officer Productivity Dashboard",
@@ -578,6 +720,7 @@ def build_dashboard_summary(
         queue=queue,
         queries=queries,
         feedback=feedback,
+        officer_stats=officer_stats,
         flagged_feedback=flagged,
         notes=list(DASHBOARD_NOTES),
     )

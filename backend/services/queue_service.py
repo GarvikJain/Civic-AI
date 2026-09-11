@@ -51,6 +51,7 @@ from backend.schemas.queue import (
     ServiceQueueDepth,
 )
 from backend.services import citizen_service
+from backend.services.officer_profile import get_or_create_officer_for_user
 
 STATUS_SCHEDULED = "scheduled"
 STATUS_IN_SERVICE = "in_service"
@@ -546,6 +547,9 @@ def start_service(db: Session, user: User, appointment_id: int) -> AppointmentRe
     now = utcnow()
     appointment.status = STATUS_IN_SERVICE
     appointment.service_started_at = now
+    if user.role in (Role.OFFICER.value, Role.ADMINISTRATOR.value):
+        profile = get_or_create_officer_for_user(db, user)
+        appointment.officer_id = profile.officer_id
     _record_actual_wait(db, appointment, now)
     db.commit()
     db.refresh(appointment)
@@ -563,6 +567,12 @@ def complete_appointment(db: Session, user: User, appointment_id: int) -> Appoin
     now = utcnow()
     appointment.status = STATUS_COMPLETED
     appointment.service_completed_at = now
+    if (
+        appointment.officer_id is None
+        and user.role in (Role.OFFICER.value, Role.ADMINISTRATOR.value)
+    ):
+        profile = get_or_create_officer_for_user(db, user)
+        appointment.officer_id = profile.officer_id
     db.commit()
     db.refresh(appointment)
     _cache_drop(appointment.appointment_id)
@@ -621,7 +631,16 @@ def queue_status(
         )
         for service in SERVICE_TYPES
     ]
-    return QueueStatusResponse(model_version=version, queues=queues)
+    live_rows = db.scalars(
+        select(Appointment)
+        .where(Appointment.status.in_((STATUS_SCHEDULED, STATUS_IN_SERVICE)))
+        .order_by(Appointment.appointment_date.asc(), Appointment.queue_number.asc())
+    ).all()
+    return QueueStatusResponse(
+        model_version=version,
+        queues=queues,
+        appointments=[_status_item(db, row) for row in live_rows],
+    )
 
 
 def _status_item(db: Session, appointment: Appointment) -> QueueStatusItem:
@@ -663,6 +682,7 @@ def to_read_model(
         queue_joined_at=appointment.queue_joined_at,
         service_started_at=appointment.service_started_at,
         service_completed_at=appointment.service_completed_at,
+        officer_id=appointment.officer_id,
     )
 
 

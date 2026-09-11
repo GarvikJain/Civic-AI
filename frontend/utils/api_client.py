@@ -6,6 +6,7 @@ details stay in one place.
 
 import os
 from pathlib import Path
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
@@ -22,21 +23,37 @@ def _url(path: str) -> str:
     return f"{BACKEND_URL}{API_PREFIX}{path}"
 
 
-def get(path: str, token: str | None = None, params: dict | None = None) -> dict:
+def get(
+    path: str,
+    token: str | None = None,
+    params: dict | None = None,
+    timeout: int | None = None,
+) -> Any:
     """Send a GET request and return the JSON response."""
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     response = requests.get(
-        _url(path), headers=headers, params=params, timeout=TIMEOUT_SECONDS
+        _url(path),
+        headers=headers,
+        params=params,
+        timeout=timeout or TIMEOUT_SECONDS,
     )
     response.raise_for_status()
     return response.json()
 
 
-def post(path: str, payload: dict, token: str | None = None) -> dict:
+def post(
+    path: str,
+    payload: dict,
+    token: str | None = None,
+    timeout: int | None = None,
+) -> Any:
     """Send a POST request with a JSON body and return the JSON response."""
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     response = requests.post(
-        _url(path), json=payload, headers=headers, timeout=TIMEOUT_SECONDS
+        _url(path),
+        json=payload,
+        headers=headers,
+        timeout=timeout or TIMEOUT_SECONDS,
     )
     response.raise_for_status()
     return response.json()

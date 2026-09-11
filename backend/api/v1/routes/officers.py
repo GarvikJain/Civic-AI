@@ -4,8 +4,8 @@ Module 4 is the productivity dashboard: SQL aggregations over live CivicAI
 records for officer and administrator accounts. Document review and flagged
 feedback remain available on the same router.
 
-Officer accounts are recognised by User.role, because Officer profile rows are
-not linked to login accounts yet.
+Staff login accounts are User rows. Appointment handling uses Officer.officer_id
+via Officer.user_id. Document review records the reviewing User.id.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -86,7 +86,7 @@ def documents_awaiting_review(
     """Documents the automated checks could not decide."""
     documents = document_service.list_documents_for_review(db)
     return DocumentList(
-        documents=[document_service.to_read_model(document) for document in documents]
+        documents=[document_service.to_read_model(document, db) for document in documents]
     )
 
 

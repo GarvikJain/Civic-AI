@@ -31,6 +31,13 @@ def create_regulation(db: Session, data: RegulationCreate) -> Regulation:
     return regulation
 
 
+def list_regulations(db: Session) -> list[Regulation]:
+    """Registered schemes, newest last, for authenticated callers."""
+    return list(
+        db.scalars(select(Regulation).order_by(Regulation.scheme_name, Regulation.regulation_id))
+    )
+
+
 def get_rag_pipeline():
     """The shared RAG pipeline.
 

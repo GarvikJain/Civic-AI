@@ -8,12 +8,16 @@ helpers are imported as "utils.api_client" and not "frontend.utils.api_client".
 
 import streamlit as st
 
-from utils.api_client import check_backend
+from utils.api_client import check_backend, get
+from utils.auth import current_role, sidebar_login
 
 st.set_page_config(page_title="CivicAI", page_icon="🏛️", layout="wide")
 
 st.title("🏛️ CivicAI")
 st.caption("An AI-Powered Intelligent Citizen Service Platform for Government Offices")
+
+token = sidebar_login()
+role = current_role()
 
 health = check_backend()
 if health is None:
@@ -23,6 +27,20 @@ if health is None:
     )
 else:
     st.success(f"Connected to backend: {health['app_name']} v{health['version']}")
+
+if token and role == "citizen":
+    try:
+        dashboard = get("/citizens/dashboard", token=token)
+        st.info(dashboard.get("message", "Citizen services are available."))
+    except Exception:
+        st.caption("Citizen dashboard could not be loaded.")
+elif token and role in ("officer", "administrator"):
+    st.info(
+        "Open Officer Productivity Dashboard from the sidebar for analytics, "
+        "document review and flagged feedback."
+    )
+else:
+    st.caption("Sign in or register from the sidebar to use citizen services.")
 
 st.divider()
 

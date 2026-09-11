@@ -197,6 +197,32 @@ else:
                 use_container_width=True,
             )
 
+        st.subheader("Officer handling statistics")
+        st.caption(
+            "Operational totals from attributed appointments and document "
+            "reviews. Rejection counts are not a quality ranking."
+        )
+        officer_stats = summary.get("officer_stats") or []
+        if not officer_stats:
+            st.caption("No attributed officer activity in this period.")
+        else:
+            st.dataframe(
+                [
+                    {
+                        "Officer": row["name"],
+                        "Appointments handled": row["appointments_handled"],
+                        "Completed": row["appointments_completed"],
+                        "Avg actual wait": row["average_actual_wait"],
+                        "Documents reviewed": row["documents_reviewed"],
+                        "Approved": row["documents_approved"],
+                        "Rejected": row["documents_rejected"],
+                    }
+                    for row in officer_stats
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
+
         st.subheader("Flagged feedback")
         flagged = summary.get("flagged_feedback") or []
         if not flagged:
@@ -241,6 +267,10 @@ else:
                 if document.get("rejection_reason"):
                     st.markdown(
                         f"**Why it needs review:** {document['rejection_reason']}"
+                    )
+                if document.get("reviewer_name") or document.get("reviewed_at"):
+                    st.caption(
+                        "A previous officer decision is already recorded on this file."
                     )
                 fields = document.get("extracted_fields") or {}
                 if fields:

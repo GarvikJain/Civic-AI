@@ -5,9 +5,11 @@
 CivicAI helps citizens get answers, submit documents and find schemes without
 standing in queues, and helps government offices see where their service is slow.
 
-> **Status:** Phases 1–9 are implemented (auth, RAG, document verification,
-> queue prediction, eligibility nudge, citizen feedback sentiment, and the
-> officer productivity dashboard).
+> **Status:** Phases 1–10 are implemented. CivicAI covers authentication and
+> RBAC, regulation RAG, document OCR and verification with officer review,
+> live queue prediction, eligibility nudge, citizen feedback sentiment, and
+> the officer productivity dashboard — including officer decision audit,
+> concurrent review protection, and appointment officer attribution.
 
 ---
 
@@ -108,8 +110,23 @@ copy .env.example .env          # Windows
 # cp .env.example .env          # Linux / macOS
 ```
 
-Then open `.env` and set `JWT_SECRET_KEY`. `GROQ_API_KEY` is only needed once
-Module 1 is implemented.
+Then open `.env` and set `JWT_SECRET_KEY`. Set `GROQ_API_KEY` before asking
+regulation questions that have retrieved evidence. Tesseract is required for
+image OCR; on Windows set `TESSERACT_CMD` if `tesseract` is not on `PATH`.
+
+`.env` is gitignored. `.env.example` contains placeholders only. Paths in
+configuration are relative to the project root (`D:\Civic-AI` when you run
+from there); nothing requires a developer-specific absolute path.
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | SQLite by default (`sqlite:///./data/civicai.db`) |
+| `JWT_SECRET_KEY` | Signs access tokens |
+| `GROQ_API_KEY` | Regulation answers with retrieved evidence only |
+| `TESSERACT_CMD` | Optional path to `tesseract.exe` on Windows |
+| `DOCUMENTS_DIR` / `CHROMA_DIR` / `REGULATIONS_DIR` | Local storage (relative paths) |
+| `OFFICE_TIMEZONE` | Office calendar for queue depth and analytics |
+| `BACKEND_URL` | Streamlit → API base URL |
 
 ---
 
@@ -138,7 +155,11 @@ streamlit run frontend/app.py
 
 ## Authentication and roles
 
-`User` is the single login identity. Every user has one role:
+`User` is the single login identity. A citizen also has a `Citizen` profile
+(`Citizen.user_id`). An officer or administrator also has an `Officer` profile
+(`Officer.user_id`). Those links are by user id, never by email matching.
+
+Every user has one role:
 
 | Role | May do |
 |------|--------|
@@ -185,8 +206,11 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | GET | `/api/v1/citizens/dashboard` | citizen |
 | GET | `/api/v1/officers/dashboard` | officer, administrator (same payload as summary) |
 | GET | `/api/v1/officers/dashboard/summary` | officer, administrator |
+| GET | `/api/v1/regulations` | any signed-in user (list schemes) |
 | POST | `/api/v1/regulations` | administrator |
-| GET | `/api/v1/regulations/status` | Module 1 status |
+| GET | `/api/v1/regulations/status` | anyone |
+| POST | `/api/v1/regulations/query` | any signed-in user |
+| POST | `/api/v1/regulations/ingest` | administrator |
 | GET | `/api/v1/documents/status` | anyone |
 | POST | `/api/v1/documents/upload` | citizen |
 | GET | `/api/v1/documents` | citizen |
@@ -195,7 +219,15 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | GET | `/api/v1/officers/documents/review` | officer, administrator |
 | POST | `/api/v1/officers/documents/{id}/approve` | officer, administrator |
 | POST | `/api/v1/officers/documents/{id}/reject` | officer, administrator |
-| GET | `/api/v1/queue/status` | Module 3 status |
+| GET | `/api/v1/queue/module` | anyone |
+| POST | `/api/v1/queue/appointments` | citizen |
+| GET | `/api/v1/queue/appointments` | citizen (own) |
+| GET | `/api/v1/queue/appointments/{id}` | owner, or officer/administrator |
+| GET | `/api/v1/queue/predict/{id}` | owner, or officer/administrator |
+| GET | `/api/v1/queue/status` | signed-in user (staff see live office queue) |
+| POST | `/api/v1/queue/appointments/{id}/start` | officer, administrator |
+| POST | `/api/v1/queue/appointments/{id}/complete` | officer, administrator |
+| POST | `/api/v1/queue/appointments/{id}/cancel` | owner, or officer/administrator |
 | GET | `/api/v1/officers/status` | anyone |
 | GET | `/api/v1/eligibility/status` | anyone |
 | GET | `/api/v1/eligibility/questionnaire/{regulation_id}` | citizen, officer, administrator |
@@ -338,11 +370,10 @@ POST /api/v1/documents/{id}/verify  (citizen, re-run checks)
 Ownership is `JWT → User.id → Citizen.user_id → GovernmentDocument.citizen_id`.
 Another citizen's document is reported as **not found**, not as forbidden.
 
-### Officer review
+### Officer review and audit trail
 
-Officer login accounts are still recognised by `User.role`. The ERD `Officer`
-row is not linked to `User` yet, so review actions record the reviewing
-`User.id` next to the extracted fields rather than as a foreign key.
+Any authorized officer or administrator may open documents in `needs_review`.
+There is no pre-assignment. The first successful final decision wins.
 
 ```
 GET  /api/v1/officers/documents/review
@@ -350,7 +381,17 @@ POST /api/v1/officers/documents/{id}/approve
 POST /api/v1/officers/documents/{id}/reject
 ```
 
-Officers and administrators may use these. Citizens receive `403`.
+Final decisions are stored on the document row, not inside OCR JSON:
+
+- `reviewed_by_user_id` — the reviewing `User.id`
+- `reviewed_at` — UTC timestamp
+- `verification_status` — `verified` or `rejected`
+- `rejection_reason` — required for officer rejection
+
+The update is conditional on `verification_status = needs_review`. A second
+concurrent approve/reject receives **409 Conflict** ("already been finalized")
+and cannot overwrite the winner. `verified` and `rejected` cannot transition
+again. Citizens receive `403` on review endpoints.
 
 Tesseract must be installed separately. On Windows, set `TESSERACT_CMD` in
 `.env` to the full path of `tesseract.exe`. Upload size is `MAX_UPLOAD_SIZE_MB`
@@ -362,7 +403,8 @@ Tesseract must be installed separately. On Windows, set `TESSERACT_CMD` in
 
 Phase 6A adds a **synthetic** historical dataset. Phase 6B trains and compares
 models offline. Phase 6C serves live predictions from the selected **queue-v1**
-MLP artifact. The Streamlit queue page is still a placeholder; use the API.
+MLP artifact. The Streamlit queue page books visits for citizens and lets
+officers start/complete service.
 
 The CSV is simulated development data. It is **not** taken from a real
 government office, contains **no PII**, and must not be quoted as evidence of
@@ -444,6 +486,11 @@ background loop. The frontend may poll later; this phase does not.
 **Actual wait** is `service_started_at - queue_joined_at` (minutes), stored on
 `QueuePredictionRecord` when an officer starts service. It stays `NULL` while
 waiting and is never copied from the prediction.
+
+**Officer attribution:** `POST .../start` (and `.../complete` if still unset)
+sets `Appointment.officer_id` from `User.id → Officer.user_id → Officer.officer_id`.
+`Officer.officer_id` is not assumed to equal `User.id`. Citizens cannot send
+`officer_id` on create.
 
 Citizens see only their own appointments (other ids return 404). Officers and
 administrators may view predictions. Artifact paths are not exposed.
@@ -565,11 +612,13 @@ Included:
   must be non-null)
 - citizen query volume by regulation/scheme (no topic NLP)
 - feedback sentiment/urgency, service breakdown, and flagged (negative + high)
-- the existing document-review queue
+- per-officer operational statistics where appointments or reviews are
+  attributed (handled/completed visits, average actual wait, documents
+  reviewed/approved/rejected). These are not performance rankings.
+- the existing document-review queue (any authorized officer; no pre-assignment)
 
-Citizens receive **403**. Per-officer handling totals are not reported because
-the live queue API does not assign `Appointment.officer_id`. The synthetic
-queue CSV is not used.
+Citizens receive **403**. The synthetic queue CSV is not used. Passwords,
+hashes, JWTs, stored filenames, filesystem paths and OCR payloads are omitted.
 
 Details: `ai_modules/officer_productivity/README.md`.
 
@@ -600,13 +649,16 @@ normal Python naming style.
 
 Relationships:
 
+- **User** has one Citizen profile and/or one Officer profile
 - **Citizen** has many appointments, documents, queries, eligibility checks and feedback
-- **Officer** has many appointments
+- **Officer** has many appointments (`Appointment.officer_id`)
 - **Regulation** has many documents, queries and eligibility checks
 - **Appointment** has many eligibility checks, feedback and queue prediction records
+- **GovernmentDocument.reviewed_by_user_id** points at the reviewing **User**
 
-The `users` table from Phase 1 still backs login and is separate from
-`citizens` for now.
+The `users` table is the login identity. `citizens.user_id` and `officers.user_id`
+are the operational links. Email is never used to resolve ownership or officer
+attribution.
 
 Tables are created automatically when the backend starts. To create them
 manually:
@@ -615,12 +667,34 @@ manually:
 python -m backend.db.init_db
 ```
 
-The SQLite file is written to `data/civicai.db`.
+The SQLite file is written to `data/civicai.db`. SQLite foreign keys are
+enabled on every connection. Extra columns added after the first create
+(`appointments` timestamps, `officers.user_id`, document review audit fields)
+are applied with `ALTER TABLE` on existing files.
 
 ---
 
 ## Tests
 
+Tests use an isolated in-memory SQLite database (`tests/conftest.py`). They do
+not read or write `data/civicai.db`.
+
 ```powershell
 pytest
+pytest -q
 ```
+
+---
+
+## Known limitations
+
+- Queue-v1 was trained on synthetic development data, not a real office log.
+- Eligibility Nudge is advisory and only evaluates criteria it can parse.
+- Feedback sentiment/urgency use a local lexicon, not an LLM.
+- Groq is used only for regulation answers that have retrieved evidence.
+- Document OCR depends on Tesseract (and PyMuPDF for PDFs).
+- Existing SQLite files that pre-date Phase 10 gain new columns via `ALTER TABLE`;
+  SQLite does not retrofit foreign-key constraints onto those added columns.
+  A fresh database created with `create_all` has the constraints.
+- Officer department defaults to `Unassigned` until an administrator updates it.
+- Streamlit is a development UI, not a production government portal.

@@ -34,6 +34,10 @@ def add_user(session_factory, email, role, is_active=True, with_profile=True) ->
         db.add(user)
         if with_profile and role is Role.CITIZEN:
             db.add(build_citizen_profile(user))
+        elif with_profile and role in (Role.OFFICER, Role.ADMINISTRATOR):
+            from backend.services.officer_profile import build_officer_profile
+
+            db.add(build_officer_profile(user))
         db.commit()
     finally:
         db.close()

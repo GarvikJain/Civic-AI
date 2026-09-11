@@ -3,8 +3,8 @@
 import streamlit as st
 from requests import HTTPError
 
-from utils.api_client import post
-from utils.auth import sidebar_login
+from utils.api_client import get, post
+from utils.auth import current_role, sidebar_login
 
 st.title("Regulation RAG Assistant")
 st.write(
@@ -13,6 +13,55 @@ st.write(
 )
 
 token = sidebar_login()
+role = current_role()
+
+if role == "administrator" and token:
+    st.subheader("Administrator: register a scheme")
+    with st.form("create-regulation"):
+        scheme_name = st.text_input("Scheme name")
+        department = st.text_input("Department")
+        criteria = st.text_area("Eligibility criteria", height=80)
+        documents = st.text_area("Required documents", height=60)
+        circular = st.text_input("Circular reference (optional)")
+        submitted = st.form_submit_button("Save regulation")
+    if submitted:
+        if not scheme_name.strip() or not department.strip():
+            st.warning("Scheme name and department are required.")
+        else:
+            try:
+                created = post(
+                    "/regulations",
+                    {
+                        "scheme_name": scheme_name.strip(),
+                        "department": department.strip(),
+                        "eligibility_criteria": criteria.strip() or None,
+                        "required_documents": documents.strip() or None,
+                        "circular_reference": circular.strip() or None,
+                    },
+                    token=token,
+                )
+                st.success(f"Saved regulation #{created['regulation_id']}.")
+            except HTTPError as error:
+                detail = error.response.text
+                try:
+                    detail = error.response.json().get("detail", detail)
+                except ValueError:
+                    pass
+                st.error(detail)
+    if st.button("Ingest regulation documents from data/regulations/"):
+        try:
+            ingested = post("/regulations/ingest", {}, token=token, timeout=180)
+            st.success(
+                f"Ingested {ingested.get('documents')} document(s), "
+                f"{ingested.get('chunks')} chunk(s)."
+            )
+        except HTTPError as error:
+            detail = error.response.text
+            try:
+                detail = error.response.json().get("detail", detail)
+            except ValueError:
+                pass
+            st.error(detail)
 
 question = st.text_area(
     "Your question",

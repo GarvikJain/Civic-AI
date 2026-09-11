@@ -1,6 +1,6 @@
 # Officer Productivity Dashboard
 
-Phase 9 is an **analytics layer**, not a new AI model.
+Phase 9–10 is an **analytics layer**, not a new AI model.
 
 It aggregates live SQLite/SQLAlchemy rows for officers and administrators.
 It does **not** call Groq, retrain the queue model, or read the synthetic
@@ -38,6 +38,7 @@ Database timestamps stay UTC.
 | Queries | `citizen_queries`, `regulations` | Grouped by scheme name. There is **no topic column**; no LLM topic classifier. |
 | Feedback | `feedback` + `appointments.service_type` | Escalation remains `negative` AND `high`. Classification is not recomputed. |
 | Flagged | same as Phase 8 | Negative + high urgency only. Comments and appointment/service ids; no `citizen_id`. |
+| Officer stats | `officers`, `appointments`, `government_documents` | Appointments handled use `Appointment.officer_id`. Document reviews use `reviewed_by_user_id`. Rejection counts are operational, not a quality ranking. |
 
 `service_type` filters appointments, wait records, feedback, and documents
 whose `document_type` equals that service name. Regulation queries are not
@@ -51,8 +52,8 @@ stored RAG answer and not `citizen_id`.
 
 ## Limitations
 
-- `Appointment.officer_id` is not set by the live queue API, so the dashboard
-  cannot honestly report applications handled per officer row.
+- Officer stats appear only after service start/complete or a document review
+  has been attributed.
 - Prediction error exists only after service start recorded an actual wait.
 - Query "topics" are scheme frequencies, not NLP categories.
 - Document `service_type` filtering uses `document_type`, which is the closest

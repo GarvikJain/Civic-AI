@@ -116,6 +116,7 @@ def test_client_cannot_set_server_controlled_fields(client, session_factory):
         {"queue_number": 99},
         {"predicted_wait_time": 3.0},
         {"citizen_id": 1},
+        {"officer_id": 1},
         {"actual_wait_time": 12.0},
         {"model_version": "queue-v9"},
     ):

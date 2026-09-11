@@ -40,6 +40,10 @@ def create_user(
 
     if user.role == Role.CITIZEN.value:
         db.add(build_citizen_profile(user))
+    elif user.role in (Role.OFFICER.value, Role.ADMINISTRATOR.value):
+        from backend.services.officer_profile import build_officer_profile
+
+        db.add(build_officer_profile(user))
 
     db.commit()
     db.refresh(user)

@@ -1,7 +1,7 @@
 """Citizen-only endpoints.
 
-Citizen services themselves arrive in later phases; for now this file exists so
-citizen-role access is wired up and tested.
+The citizen dashboard is a signed-in landing response. The six CivicAI
+services live on their own routers and Streamlit pages.
 """
 
 from fastapi import APIRouter, Depends
@@ -21,6 +21,10 @@ def dashboard(
     """Citizen home area. Only citizens may open it."""
     return MessageResponse(
         module="Citizen Dashboard",
-        status="not_implemented",
-        message=f"Signed in as {current_user.email}. Citizen services come later.",
+        status="available",
+        message=(
+            f"Signed in as {current_user.full_name}. Use the Streamlit pages "
+            "for regulation questions, documents, appointments, eligibility "
+            "and feedback."
+        ),
     )

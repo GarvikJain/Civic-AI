@@ -23,6 +23,9 @@ class DocumentRead(BaseModel):
     rejection_reason: str | None = None
     # Fields read off the document, if any were found.
     extracted_fields: dict[str, str] = Field(default_factory=dict)
+    reviewed_by_user_id: int | None = None
+    reviewed_at: datetime | None = None
+    reviewer_name: str | None = None
 
 
 class DocumentList(BaseModel):

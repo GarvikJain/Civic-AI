@@ -12,8 +12,9 @@ choose a citizen_id.
 """
 
 import json
+from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ai_modules.document_verification.file_validation import validate_upload
@@ -42,7 +43,15 @@ class RegulationNotFoundError(Exception):
 
 
 class DocumentNotReviewableError(Exception):
-    """The document is not waiting for officer review."""
+    """The document is not waiting for officer review, or is already final."""
+
+
+FINAL_VERIFICATION_STATUSES = frozenset(
+    {
+        VerificationStatus.VERIFIED.value,
+        VerificationStatus.REJECTED.value,
+    }
+)
 
 
 def max_upload_bytes() -> int:
@@ -141,8 +150,14 @@ def extracted_fields_of(document: GovernmentDocument) -> dict[str, str]:
     return fields if isinstance(fields, dict) else {}
 
 
-def to_read_model(document: GovernmentDocument) -> DocumentRead:
+def to_read_model(
+    document: GovernmentDocument, db: Session | None = None
+) -> DocumentRead:
     """The API view of a document, without any filesystem detail."""
+    reviewer_name = None
+    if document.reviewed_by_user_id is not None and db is not None:
+        reviewer = db.get(User, document.reviewed_by_user_id)
+        reviewer_name = reviewer.full_name if reviewer is not None else None
     return DocumentRead(
         document_id=document.document_id,
         citizen_id=document.citizen_id,
@@ -153,6 +168,9 @@ def to_read_model(document: GovernmentDocument) -> DocumentRead:
         verification_status=document.verification_status,
         rejection_reason=document.rejection_reason,
         extracted_fields=extracted_fields_of(document),
+        reviewed_by_user_id=document.reviewed_by_user_id,
+        reviewed_at=document.reviewed_at,
+        reviewer_name=reviewer_name,
     )
 
 
@@ -200,7 +218,7 @@ def upload_document(
 
     db.commit()
     db.refresh(document)
-    return to_read_model(document)
+    return to_read_model(document, db)
 
 
 def get_own_document(db: Session, user: User, document_id: int) -> GovernmentDocument:
@@ -231,6 +249,10 @@ def list_own_documents(db: Session, user: User) -> list[GovernmentDocument]:
 def reverify_own_document(db: Session, user: User, document_id: int) -> DocumentRead:
     """Run verification again on the citizen's stored file."""
     document = get_own_document(db, user, document_id)
+    if document.verification_status in FINAL_VERIFICATION_STATUSES:
+        raise DocumentNotReviewableError(
+            "This document has already been finalized."
+        )
     if not document.stored_filename:
         raise DocumentNotFoundError(
             f"The stored file for document {document_id} is no longer available."
@@ -257,7 +279,7 @@ def reverify_own_document(db: Session, user: User, document_id: int) -> Document
     _store_outcome(document, outcome, regulation)
     db.commit()
     db.refresh(document)
-    return to_read_model(document)
+    return to_read_model(document, db)
 
 
 # --- officer operations -----------------------------------------------------
@@ -277,15 +299,57 @@ def list_documents_for_review(db: Session) -> list[GovernmentDocument]:
     )
 
 
-def _document_for_review(db: Session, document_id: int) -> GovernmentDocument:
+def _raise_if_not_reviewable(db: Session, document_id: int) -> None:
     document = db.get(GovernmentDocument, document_id)
     if document is None:
         raise DocumentNotFoundError(f"Document {document_id} was not found.")
-    if document.verification_status != VerificationStatus.NEEDS_REVIEW.value:
-        raise DocumentNotReviewableError(
-            f"Document {document_id} is not waiting for review "
-            f"(status: {document.verification_status})."
+    if document.verification_status in FINAL_VERIFICATION_STATUSES:
+        raise DocumentNotReviewableError("This document has already been finalized.")
+    raise DocumentNotReviewableError(
+        f"Document {document_id} is not waiting for review "
+        f"(status: {document.verification_status})."
+    )
+
+
+def _finalize_review(
+    db: Session,
+    officer: User,
+    document_id: int,
+    *,
+    status: str,
+    rejection_reason: str | None,
+) -> GovernmentDocument:
+    """Atomically apply a final officer decision.
+
+    The WHERE clause requires needs_review so two concurrent decisions cannot
+    both succeed. The winner's user id and timestamp are stored on the row,
+    not in OCR JSON.
+    """
+    now = datetime.now(timezone.utc)
+    result = db.execute(
+        update(GovernmentDocument)
+        .where(
+            GovernmentDocument.document_id == document_id,
+            GovernmentDocument.verification_status
+            == VerificationStatus.NEEDS_REVIEW.value,
         )
+        .values(
+            verification_status=status,
+            rejection_reason=rejection_reason,
+            reviewed_by_user_id=officer.id,
+            reviewed_at=now,
+        )
+        .execution_options(synchronize_session="fetch")
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        _raise_if_not_reviewable(db, document_id)
+    document = db.get(GovernmentDocument, document_id)
+    if document is None:
+        db.rollback()
+        raise DocumentNotFoundError(f"Document {document_id} was not found.")
+    db.commit()
+    db.refresh(document)
     return document
 
 
@@ -293,50 +357,29 @@ def approve_document(
     db: Session, officer: User, document_id: int, note: str | None = None
 ) -> DocumentRead:
     """An officer accepts a document that needed review."""
-    document = _document_for_review(db, document_id)
-    document.verification_status = VerificationStatus.VERIFIED.value
-    document.rejection_reason = None
-    _record_review(document, officer, "approved", note)
-    db.commit()
-    db.refresh(document)
-    return to_read_model(document)
+    del note
+    document = _finalize_review(
+        db,
+        officer,
+        document_id,
+        status=VerificationStatus.VERIFIED.value,
+        rejection_reason=None,
+    )
+    return to_read_model(document, db)
 
 
 def reject_document(
     db: Session, officer: User, document_id: int, reason: str
 ) -> DocumentRead:
     """An officer rejects a document, giving the reason."""
-    document = _document_for_review(db, document_id)
-    document.verification_status = VerificationStatus.REJECTED.value
-    document.rejection_reason = reason
-    _record_review(document, officer, "rejected", reason)
-    db.commit()
-    db.refresh(document)
-    return to_read_model(document)
-
-
-def _record_review(
-    document: GovernmentDocument, officer: User, decision: str, note: str | None
-) -> None:
-    """Note who decided, alongside the extracted fields.
-
-    Officer accounts have no Officer profile row yet, so the reviewing user is
-    recorded here rather than as a foreign key.
-    """
-    stored = {}
-    if document.extracted_data:
-        try:
-            loaded = json.loads(document.extracted_data)
-            stored = loaded if isinstance(loaded, dict) else {}
-        except ValueError:
-            stored = {}
-
-    stored["review"] = {
-        "decision": decision,
-        "reviewed_by_user_id": officer.id,
-        "note": note,
-    }
-    document.extracted_data = json.dumps(stored)
+    document = _finalize_review(
+        db,
+        officer,
+        document_id,
+        status=VerificationStatus.REJECTED.value,
+        rejection_reason=reason,
+    )
+    return to_read_model(document, db)
 
 
 def get_status() -> MessageResponse:

@@ -37,8 +37,14 @@ class GovernmentDocument(Base):
     # pending / processing / verified / rejected / needs_review.
     verification_status: Mapped[str] = mapped_column(String(20), default="pending")
     # Why a document was rejected, or why it needs review. Always the text of a
-    # rule that actually failed.
+    # rule that actually failed, or the officer's rejection reason.
     rejection_reason: Mapped[str | None] = mapped_column(Text)
+    # Final officer review (needs_review → verified/rejected). Not used for
+    # automated decisions. Identity is User.id, not Officer.officer_id.
+    reviewed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # The server-generated file name inside the documents directory. The
     # citizen's original file name is never used, and this is never returned by
