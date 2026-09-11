@@ -1,15 +1,29 @@
-"""Pydantic schemas for users and authentication."""
+"""Pydantic schemas for users and authentication.
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+None of the response schemas contain the password or its hash.
+"""
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+from backend.core.roles import Role
 
 
-class UserCreate(BaseModel):
-    """Data needed to register a new user."""
+class UserRegister(BaseModel):
+    """Public self-registration. The role is always citizen.
 
-    full_name: str
+    Officer and administrator accounts are created by an administrator through
+    the admin endpoint, never by self-registration.
+    """
+
+    full_name: str = Field(min_length=1, max_length=120)
     email: EmailStr
-    password: str
-    role: str = "citizen"
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserCreate(UserRegister):
+    """Administrator-only user creation, where the role can be chosen."""
+
+    role: Role = Role.CITIZEN
 
 
 class UserLogin(BaseModel):
@@ -20,14 +34,15 @@ class UserLogin(BaseModel):
 
 
 class UserRead(BaseModel):
-    """User data returned by the API (never includes the password)."""
+    """User data returned by the API (never includes the password hash)."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     full_name: str
     email: EmailStr
-    role: str
+    role: Role
+    is_active: bool
 
 
 class Token(BaseModel):

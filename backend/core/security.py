@@ -19,11 +19,18 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
-def create_access_token(subject: str, role: str) -> str:
-    """Create a signed JWT for a user."""
-    expires_at = datetime.now(timezone.utc) + timedelta(
+def create_access_token(
+    subject: str, role: str, expires_delta: timedelta | None = None
+) -> str:
+    """Create a signed JWT for a user.
+
+    expires_delta overrides the configured lifetime; it is mainly useful for
+    testing token expiry.
+    """
+    lifetime = expires_delta or timedelta(
         minutes=settings.access_token_expire_minutes
     )
+    expires_at = datetime.now(timezone.utc) + lifetime
     payload = {"sub": subject, "role": role, "exp": expires_at}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 

@@ -1,14 +1,15 @@
 """User model.
 
-CivicAI has two kinds of users: citizens and government officers. The role
-column decides which modules a user is allowed to reach.
+This is the single authentication identity for CivicAI. The role column decides
+which parts of the platform a user may reach: citizen, officer or administrator.
 """
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from backend.core.roles import Role
 from backend.db.base import Base
 
 
@@ -19,7 +20,9 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20), default="citizen")
+    role: Mapped[str] = mapped_column(String(20), default=Role.CITIZEN.value)
+    # A disabled account keeps its history but can no longer log in.
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

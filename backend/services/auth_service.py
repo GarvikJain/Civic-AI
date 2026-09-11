@@ -6,9 +6,10 @@ The routes only handle HTTP; the actual work lives here.
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.core.roles import Role
 from backend.core.security import hash_password, verify_password
 from backend.models.user import User
-from backend.schemas.user import UserCreate
+from backend.schemas.user import UserRegister
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -16,13 +17,20 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email))
 
 
-def create_user(db: Session, data: UserCreate) -> User:
-    """Store a new user with a hashed password."""
+def create_user(
+    db: Session, data: UserRegister, role: Role = Role.CITIZEN
+) -> User:
+    """Store a new user with a bcrypt-hashed password.
+
+    The role is passed in by the caller rather than taken from the request
+    body, so a user can never choose their own role.
+    """
     user = User(
         full_name=data.full_name,
         email=data.email,
         hashed_password=hash_password(data.password),
-        role=data.role,
+        role=Role(role).value,
+        is_active=True,
     )
     db.add(user)
     db.commit()

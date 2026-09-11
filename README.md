@@ -136,15 +136,55 @@ streamlit run frontend/app.py
 
 ---
 
+## Authentication and roles
+
+`User` is the single login identity. Every user has one role:
+
+| Role | May do |
+|------|--------|
+| `citizen` | Citizen services (own appointments, documents, queries, feedback) |
+| `officer` | Officer functionality, including the productivity dashboard |
+| `administrator` | Everything an officer can do, plus scheme and account management |
+
+Rules:
+
+- Passwords are stored only as bcrypt hashes and never appear in any response.
+- Logging in returns a JWT; send it as `Authorization: Bearer <token>`.
+- Missing, invalid and expired tokens are rejected with `401`. A token whose
+  user was deleted is also rejected.
+- An inactive account cannot log in and cannot use a token (`403`).
+- `POST /auth/register` always creates a **citizen**. Officer and administrator
+  accounts are created by an administrator via `POST /auth/users`.
+
+Because only an administrator can create an administrator, create the first one
+from the command line:
+
+```powershell
+python -m backend.db.create_admin "Your Name" you@example.com
+```
+
+Routes declare their own requirement with the shared `require_role`
+dependency from `backend/api/deps.py`:
+
+```python
+current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
+```
+
+---
+
 ## API endpoints
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/` | Basic app information |
-| GET | `/api/v1/health` | Health check |
-| POST | `/api/v1/auth/register` | Create an account |
-| POST | `/api/v1/auth/login` | Get a JWT |
-| GET | `/api/v1/auth/me` | Current user (needs a token) |
+| Method | Path | Who can use it |
+|--------|------|----------------|
+| GET | `/` | anyone |
+| GET | `/api/v1/health` | anyone |
+| POST | `/api/v1/auth/register` | anyone (creates a citizen) |
+| POST | `/api/v1/auth/login` | anyone |
+| GET | `/api/v1/auth/me` | any signed-in user |
+| POST | `/api/v1/auth/users` | administrator |
+| GET | `/api/v1/citizens/dashboard` | citizen |
+| GET | `/api/v1/officers/dashboard` | officer, administrator |
+| POST | `/api/v1/regulations` | administrator |
 | GET | `/api/v1/regulations/status` | Module 1 status |
 | GET | `/api/v1/documents/status` | Module 2 status |
 | GET | `/api/v1/queue/status` | Module 3 status |

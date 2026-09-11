@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from backend.api.v1.routes import (
     auth,
+    citizens,
     documents,
     eligibility,
     feedback,
@@ -20,6 +21,7 @@ api_router = APIRouter()
 
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
+api_router.include_router(citizens.router)
 
 # The six CivicAI modules
 api_router.include_router(regulations.router)
