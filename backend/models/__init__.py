@@ -12,6 +12,7 @@ from backend.models.eligibility_check import EligibilityCheck
 from backend.models.feedback import Feedback
 from backend.models.government_document import GovernmentDocument
 from backend.models.officer import Officer
+from backend.models.queue_prediction_record import QueuePredictionRecord
 from backend.models.regulation import Regulation
 from backend.models.user import User
 
@@ -23,6 +24,7 @@ __all__ = [
     "Feedback",
     "GovernmentDocument",
     "Officer",
+    "QueuePredictionRecord",
     "Regulation",
     "User",
 ]

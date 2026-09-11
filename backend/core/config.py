@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # instead of being judged automatically.
     ocr_min_text_length: int = 25
 
+    # IANA timezone for the physical office's business day (for example
+    # Asia/Kolkata), or UTC. Queue depth, queue numbers, and prediction
+    # day_of_week/hour use this calendar. Appointment instants stay UTC.
+    office_timezone: str = "UTC"
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

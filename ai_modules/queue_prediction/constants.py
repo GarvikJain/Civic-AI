@@ -100,6 +100,13 @@ TEST_RATIO: Final[float] = 0.15
 
 MODEL_VERSION: Final[str] = "queue-v1"
 
+# Server-side prediction freshness. The loaded model stays cached separately.
+PREDICTION_FRESHNESS_SECONDS: Final[int] = 60
+
+# Minimum completed CivicAI service durations before live history replaces the
+# configured per-service baseline used as historical_service_time.
+MIN_COMPLETED_SERVICE_OBSERVATIONS: Final[int] = 5
+
 # Classification baseline buckets. Medium includes both 15 and 30 minutes.
 WAIT_CATEGORY_SHORT = "Short"
 WAIT_CATEGORY_MEDIUM = "Medium"

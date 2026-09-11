@@ -349,16 +349,17 @@ Tesseract must be installed separately. On Windows, set `TESSERACT_CMD` in
 
 ---
 
-## Module 3: Queue Wait-Time Prediction (dataset only)
+## Module 3: Queue Wait-Time Prediction
 
-Phase 6A adds a **synthetic** historical dataset so a wait-time model can be
-developed later. No model has been trained yet, and the prediction API is still
-a placeholder.
+Phase 6A adds a **synthetic** historical dataset. Phase 6B trains and compares
+models offline. Phase 6C serves live predictions from the selected **queue-v1**
+MLP artifact. The Streamlit queue page is still a placeholder; use the API.
 
 The CSV is simulated development data. It is **not** taken from a real
 government office, contains **no PII**, and must not be quoted as evidence of
-real waiting times. A production system would need real historical queue logs
-before the model's accuracy could be trusted.
+real waiting times. **The model was trained using synthetic development data.
+Live predictions are estimates and have not been validated against real
+government-office historical data.**
 
 | | |
 |--|--|
@@ -367,6 +368,7 @@ before the model's accuracy could be trusted.
 | Seed | 42 (re-running the generator produces the same file) |
 | Target | `actual_wait_time` (minutes) |
 | Features available at prediction time | `service_type`, `day_of_week`, `hour`, `queue_depth`, `historical_service_time` |
+| Selected model | MLPRegressor (`mlp.joblib`), version `queue-v1` |
 
 Six counter services are simulated, with Income Certificate the most common and
 Welfare Scheme Application the least. Timestamps fall on weekdays between
@@ -375,35 +377,69 @@ rush than over lunch. `historical_service_time` is the typical duration for
 that service (known before the visit), not the duration of this visit, and it
 is never computed from the target.
 
-Regenerate with:
+Regenerate the dataset with:
 
 ```powershell
 python -m ai_modules.queue_prediction.dataset_generator
 ```
 
-### Wait-time models (Phase 6B)
-
-Three regression models are trained on a **chronological** 70/15/15 split
-(oldest → train, then validation, newest → test). Preprocessing is a sklearn
-`ColumnTransformer`: one-hot encoding for `service_type` and `day_of_week`,
-standard scaling for `hour`, `queue_depth` and `historical_service_time`. The
-transformer is fitted on the training split only and stored inside the same
-joblib pipeline as the estimator.
-
-The model with the lowest **validation MAE** is selected. The test set is scored
-once afterwards and is not used to choose the model. A Logistic Regression
-classifier is trained separately to predict Short (<15 min) / Medium (15–30) /
-Long (>30) as a classification baseline — it is not the primary wait-time model.
+Retrain offline (not during API requests) with:
 
 ```powershell
 python -m ai_modules.queue_prediction.model_training
 ```
 
-Artifacts (gitignored): `data/queue_prediction/models/`.  
-Metrics: `data/queue_prediction/model_evaluation.json`.
+### Live prediction (Phase 6C)
 
-These scores are from **synthetic development data**. They are not real
-office-performance figures.
+Flow: a citizen books a visit → the server counts **active CivicAI appointments**
+for that service and calendar day → it chooses `historical_service_time` → the
+**cached** queue-v1 pipeline predicts wait → `Appointment.predicted_wait_time`
+and a `QueuePredictionRecord` are stored.
+
+| | |
+|--|--|
+| Create | `POST /api/v1/queue/appointments` (citizen JWT) |
+| Get / list | `GET /api/v1/queue/appointments`, `GET /api/v1/queue/appointments/{id}` |
+| Predict | `GET /api/v1/queue/predict/{appointment_id}` |
+| Status | `GET /api/v1/queue/status` |
+| History | `GET /api/v1/queue/appointments/{id}/history` |
+| Staff events | `POST .../start`, `POST .../complete`, `POST .../cancel` |
+
+The client may send only `service_type` and `appointment_date`. `citizen_id`,
+`queue_number`, `predicted_wait_time`, `actual_wait_time` and `model_version`
+are server-controlled.
+
+**Queue depth** is `COUNT` of appointments with status `scheduled` or
+`in_service` for that service on that **office-local calendar day**. The
+office timezone is `OFFICE_TIMEZONE` (default `UTC`, the rest of CivicAI's
+convention). Appointment instants are still stored as UTC. `completed` and
+`cancelled` are excluded. The synthetic CSV is never queried.
+
+**Queue numbers** are `MAX(queue_number)+1` for that service and day, including
+cancelled rows so numbers are not reused.
+
+**Historical service time** uses the mean of
+`(service_completed_at - service_started_at)` from completed CivicAI visits
+when at least five such observations exist for that service. Otherwise the
+configured Phase 6A per-service baseline is used. This fallback is a feature
+default, not a fabricated live wait, and not the current visit's duration.
+
+**Model cache:** `mlp.joblib` (preprocess + estimator) is loaded lazily once
+per process via `load_selected_model()`. Requests do not reload the file.
+
+**Prediction cache:** a timestamped per-appointment result is reused for
+**60 seconds** while queue depth is unchanged. After 60 seconds, or when the
+live queue changes, the next authorized request recomputes. There is no
+background loop. The frontend may poll later; this phase does not.
+
+**Actual wait** is `service_started_at - queue_joined_at` (minutes), stored on
+`QueuePredictionRecord` when an officer starts service. It stays `NULL` while
+waiting and is never copied from the prediction.
+
+Citizens see only their own appointments (other ids return 404). Officers and
+administrators may view predictions. Artifact paths are not exposed.
+
+Appointments are weekday-only, matching the training data.
 
 ---
 
@@ -423,13 +459,14 @@ normal Python naming style.
 | CitizenQuery | `citizen_queries` | `backend/models/citizen_query.py` |
 | EligibilityCheck | `eligibility_checks` | `backend/models/eligibility_check.py` |
 | Feedback | `feedback` | `backend/models/feedback.py` |
+| QueuePredictionRecord | `queue_prediction_records` | `backend/models/queue_prediction_record.py` |
 
 Relationships:
 
 - **Citizen** has many appointments, documents, queries, eligibility checks and feedback
 - **Officer** has many appointments
 - **Regulation** has many documents, queries and eligibility checks
-- **Appointment** has many eligibility checks and feedback
+- **Appointment** has many eligibility checks, feedback and queue prediction records
 
 The `users` table from Phase 1 still backs login and is separate from
 `citizens` for now.

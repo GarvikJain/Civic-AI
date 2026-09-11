@@ -8,6 +8,6 @@ st.title("Queue Wait-Time Prediction")
 st.write("See how long you are likely to wait at a government office.")
 
 try:
-    st.json(get("/queue/status"))
+    st.json(get("/queue/module"))
 except Exception as error:
     st.warning(f"Could not reach the backend: {error}")

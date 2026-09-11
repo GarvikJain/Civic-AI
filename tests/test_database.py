@@ -51,6 +51,7 @@ EXPECTED_FOREIGN_KEYS = {
         "regulation_id": "regulations",
     },
     "feedback": {"citizen_id": "citizens", "appointment_id": "appointments"},
+    "queue_prediction_records": {"appointment_id": "appointments"},
 }
 
 
