@@ -156,6 +156,31 @@ streamlit run frontend/app.py
 
 ## Database
 
+The schema follows the CivicAI ER diagram. ERD field names such as `CitizenID`
+and `OCRStatus` become `citizen_id` and `ocr_status` in the models, which is the
+normal Python naming style.
+
+| Entity | Table | File |
+|--------|-------|------|
+| Citizen | `citizens` | `backend/models/citizen.py` |
+| Officer | `officers` | `backend/models/officer.py` |
+| Regulation | `regulations` | `backend/models/regulation.py` |
+| Appointment | `appointments` | `backend/models/appointment.py` |
+| GovernmentDocument | `government_documents` | `backend/models/government_document.py` |
+| CitizenQuery | `citizen_queries` | `backend/models/citizen_query.py` |
+| EligibilityCheck | `eligibility_checks` | `backend/models/eligibility_check.py` |
+| Feedback | `feedback` | `backend/models/feedback.py` |
+
+Relationships:
+
+- **Citizen** has many appointments, documents, queries, eligibility checks and feedback
+- **Officer** has many appointments
+- **Regulation** has many documents, queries and eligibility checks
+- **Appointment** has many eligibility checks and feedback
+
+The `users` table from Phase 1 still backs login and is separate from
+`citizens` for now.
+
 Tables are created automatically when the backend starts. To create them
 manually:
 

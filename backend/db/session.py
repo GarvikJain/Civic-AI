@@ -4,9 +4,8 @@ Only this module knows which database is being used, so moving from SQLite to
 PostgreSQL means changing DATABASE_URL in the .env file and nothing else.
 """
 
-from pathlib import Path
-
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.core.config import BASE_DIR, settings
@@ -27,9 +26,27 @@ def _ensure_sqlite_directory() -> None:
         (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
 
 
+def enable_sqlite_foreign_keys(target_engine: Engine) -> None:
+    """Make SQLite enforce foreign keys.
+
+    SQLite ignores foreign keys unless this pragma is set on every connection.
+    PostgreSQL always enforces them, so this keeps both databases behaving the
+    same way.
+    """
+    if target_engine.dialect.name != "sqlite":
+        return
+
+    @event.listens_for(target_engine, "connect")
+    def _set_pragma(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 _ensure_sqlite_directory()
 
 engine = create_engine(settings.database_url, echo=False, **_engine_kwargs())
+enable_sqlite_foreign_keys(engine)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
