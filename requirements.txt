@@ -1,0 +1,43 @@
+# CivicAI - Python dependencies
+# Install with: pip install -r requirements.txt
+
+# --- Backend / API ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+
+# --- Configuration ---
+pydantic>=2.6
+pydantic-settings>=2.2
+email-validator>=2.1
+python-dotenv>=1.0
+
+# --- Database ---
+SQLAlchemy>=2.0
+
+# --- Authentication ---
+PyJWT>=2.8
+bcrypt>=4.1
+
+# --- Frontend ---
+streamlit>=1.32
+requests>=2.31
+
+# --- AI: retrieval / embeddings / knowledge graph ---
+chromadb>=0.4.24
+sentence-transformers>=2.6
+networkx>=3.2
+groq>=0.4
+
+# --- AI: document verification (OCR) ---
+pytesseract>=0.3.10
+Pillow>=10.2
+
+# --- AI: machine learning ---
+scikit-learn>=1.4
+pandas>=2.2
+numpy>=1.26
+
+# --- Tests ---
+pytest>=8.0
+httpx>=0.27

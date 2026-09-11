@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables (never commit real secrets)
+.env
+
+# Local data: database, uploads, vector store
+data/*.db
+data/uploads/*
+data/chroma/*
+!data/.gitkeep
+!data/uploads/.gitkeep
+!data/chroma/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
