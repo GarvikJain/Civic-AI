@@ -22,6 +22,9 @@ data/chroma/*
 !data/documents/.gitkeep
 !data/chroma/.gitkeep
 
+# Trained ML artifacts (not produced in Phase 6A)
+data/queue_prediction/models/
+
 # Editors / OS
 .vscode/
 .idea/

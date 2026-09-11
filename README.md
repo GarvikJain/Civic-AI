@@ -349,6 +349,40 @@ Tesseract must be installed separately. On Windows, set `TESSERACT_CMD` in
 
 ---
 
+## Module 3: Queue Wait-Time Prediction (dataset only)
+
+Phase 6A adds a **synthetic** historical dataset so a wait-time model can be
+developed later. No model has been trained yet, and the prediction API is still
+a placeholder.
+
+The CSV is simulated development data. It is **not** taken from a real
+government office, contains **no PII**, and must not be quoted as evidence of
+real waiting times. A production system would need real historical queue logs
+before the model's accuracy could be trusted.
+
+| | |
+|--|--|
+| File | `data/queue_prediction/synthetic_queue_data.csv` |
+| Rows | 15,000 |
+| Seed | 42 (re-running the generator produces the same file) |
+| Target | `actual_wait_time` (minutes) |
+| Features available at prediction time | `service_type`, `day_of_week`, `hour`, `queue_depth`, `historical_service_time` |
+
+Six counter services are simulated, with Income Certificate the most common and
+Welfare Scheme Application the least. Timestamps fall on weekdays between
+08:30 and 17:30. Queue depth and waiting time tend to be higher in the morning
+rush than over lunch. `historical_service_time` is the typical duration for
+that service (known before the visit), not the duration of this visit, and it
+is never computed from the target.
+
+Regenerate with:
+
+```powershell
+python -m ai_modules.queue_prediction.dataset_generator
+```
+
+---
+
 ## Database
 
 The schema follows the CivicAI ER diagram. ERD field names such as `CitizenID`

@@ -1,7 +1,23 @@
-"""Queue Wait-Time Prediction (not implemented yet).
+"""Queue Wait-Time Prediction.
 
-Planned pipeline:
-1. Build features from past visits (time of day, weekday, service type, staff).
-2. Train a scikit-learn regression model on historical wait times.
-3. Predict the expected wait for a new visit.
+Phase 6A is the synthetic historical dataset only. Model training and the
+prediction API are not implemented yet.
+
+The dataset is simulated development data, not records from a real office.
 """
+
+from ai_modules.queue_prediction.constants import (
+    DATASET_COLUMNS,
+    DEFAULT_N_RECORDS,
+    DEFAULT_SEED,
+    PREDICTION_FEATURES,
+    SERVICE_TYPES,
+)
+
+__all__ = [
+    "DATASET_COLUMNS",
+    "DEFAULT_N_RECORDS",
+    "DEFAULT_SEED",
+    "PREDICTION_FEATURES",
+    "SERVICE_TYPES",
+]
