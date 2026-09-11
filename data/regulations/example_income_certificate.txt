@@ -1,0 +1,38 @@
+scheme_name: Example Income Certificate Scheme
+department: Revenue
+circular_reference: EXAMPLE/CIRC/2026/01
+---
+Section 1. Purpose
+
+This is sample text written for local CivicAI development and testing. It is
+not a real government circular and must not be used as official guidance.
+Replace this file with the actual regulation documents issued by your
+department before using the assistant for real citizen queries.
+
+Section 2. Eligibility
+
+An applicant is eligible for an income certificate under this example scheme if
+the total annual household income is below 2,50,000 rupees, the applicant has
+been a resident of the district for at least one year, and the applicant is not
+already holding a valid income certificate issued in the same financial year.
+
+Section 3. Required Documents
+
+The applicant must submit proof of identity, proof of residence, and proof of
+income. Proof of identity may be an Aadhaar card or a voter identity card.
+Proof of residence may be a ration card or a registered rent agreement. Proof
+of income may be a salary slip, an employer certificate, or a self-declaration
+attested by a revenue officer.
+
+Section 4. Processing Time
+
+An application filed with complete documents is processed within fifteen
+working days. If any document is missing, the applicant is informed within
+three working days and the application is held for thirty days pending the
+missing document.
+
+Section 5. Appeals
+
+An applicant whose application is rejected may appeal to the Sub-Divisional
+Officer within sixty days of the rejection date. The appeal must state the
+reason for rejection quoted in the rejection order.

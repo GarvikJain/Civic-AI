@@ -6,8 +6,8 @@ from backend.main import app
 
 client = TestClient(app)
 
-MODULE_PATHS = [
-    "/api/v1/regulations/status",
+# Modules that are still placeholders.
+PLACEHOLDER_PATHS = [
     "/api/v1/documents/status",
     "/api/v1/queue/status",
     "/api/v1/officers/status",
@@ -15,9 +15,19 @@ MODULE_PATHS = [
     "/api/v1/feedback/status",
 ]
 
+# Module 1 was implemented in Phase 4.
+IMPLEMENTED_PATHS = ["/api/v1/regulations/status"]
 
-def test_module_status_endpoints():
-    for path in MODULE_PATHS:
+
+def test_placeholder_module_status_endpoints():
+    for path in PLACEHOLDER_PATHS:
         response = client.get(path)
         assert response.status_code == 200, path
         assert response.json()["status"] == "not_implemented"
+
+
+def test_implemented_module_status_endpoints():
+    for path in IMPLEMENTED_PATHS:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.json()["status"] == "available"

@@ -35,13 +35,30 @@ class Settings(BaseSettings):
 
     # --- LLM (Groq) ---
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    # Groq retires models over time; check https://console.groq.com/docs/models
+    # if a request fails with a "model not found" error.
+    groq_model: str = "openai/gpt-oss-20b"
 
     # --- AI module paths and models ---
     chroma_dir: str = "./data/chroma"
+    chroma_collection: str = "civicai_regulations"
+    regulations_dir: str = "./data/regulations"
     upload_dir: str = "./data/uploads"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    # --- Regulation RAG ---
+    # Chunk sizes are in characters.
+    rag_chunk_size: int = 900
+    rag_chunk_overlap: int = 150
+    # Candidates fetched from ChromaDB before reranking.
+    rag_top_k: int = 8
+    # Chunks kept after reranking and sent to the LLM.
+    rag_rerank_top_k: int = 3
+    # Minimum cross-encoder score for a chunk to count as evidence. Below this
+    # the assistant returns the insufficient-evidence answer instead of asking
+    # the LLM to guess.
+    rag_min_score: float = 0.0
 
     # --- OCR ---
     tesseract_cmd: str = ""

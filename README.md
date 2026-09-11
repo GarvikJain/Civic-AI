@@ -194,6 +194,94 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 
 ---
 
+## Module 1: Regulation RAG Assistant
+
+Citizens ask a question in plain language and get an answer built **only** from
+the official regulation documents you have ingested, with citations.
+
+```
+citizen question
+  -> embed the question (sentence-transformers, all-MiniLM-L6-v2)
+  -> search ChromaDB for candidate chunks (top_k)
+  -> add knowledge graph facts (NetworkX)
+  -> rerank the candidates (cross-encoder, ms-marco-MiniLM-L-6-v2)
+  -> keep only chunks scoring above RAG_MIN_SCORE (rerank_top_k)
+  -> ask Groq for an answer grounded in that evidence
+  -> answer + citations
+```
+
+If no chunk clears the score threshold, **the LLM is never called** and the
+assistant replies that the available regulations do not answer the question.
+It does not guess.
+
+### Adding regulation documents
+
+Put `.txt` or `.md` files in `data/regulations/`. Nothing is downloaded from
+the internet. An optional header lets answers cite the scheme and circular:
+
+```
+scheme_name: Income Certificate Scheme
+department: Revenue
+circular_reference: CIRC/2026/11
+---
+Section 1. Eligibility
+...
+```
+
+Headings such as `Section 3`, `Clause 2.1` or `3.` are detected and attached to
+every chunk, so a citation can name the exact clause. Without a header the file
+name becomes the scheme name.
+
+Then ingest them as an administrator:
+
+```powershell
+# once, to create an administrator
+python -m backend.db.create_admin "Your Name" you@example.com
+```
+
+```
+POST /api/v1/regulations/ingest      (administrator only)
+```
+
+Re-ingesting a file replaces its chunks instead of duplicating them, because
+chunk IDs are derived from the document and chunk position.
+
+### Asking a question
+
+```
+POST /api/v1/regulations/query       (any signed-in user)
+{ "query": "Which documents do I need for an income certificate?" }
+```
+
+```json
+{
+  "answer": "Proof of identity, proof of residence and proof of income ...",
+  "citations": [
+    {
+      "scheme_name": "Income Certificate Scheme",
+      "circular_reference": "CIRC/2026/11",
+      "section": "Section 3",
+      "source": "income_certificate.txt",
+      "regulation_id": 1
+    }
+  ],
+  "insufficient_evidence": false,
+  "evidence_count": 2
+}
+```
+
+A citation field is `null` when the source document did not provide it; nothing
+is invented. The question and answer are saved as a `CitizenQuery` for the
+signed-in citizen, and the owner always comes from the JWT rather than the
+request body.
+
+Tuning lives in `.env`: `RAG_TOP_K`, `RAG_RERANK_TOP_K`, `RAG_MIN_SCORE`,
+`RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`, `EMBEDDING_MODEL`, `RERANKER_MODEL`,
+`GROQ_MODEL`. The embedding and reranker models download on first use and are
+then loaded once per process, not once per request.
+
+---
+
 ## Database
 
 The schema follows the CivicAI ER diagram. ERD field names such as `CitizenID`
