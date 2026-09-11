@@ -22,24 +22,34 @@ _APPOINTMENT_NEW_COLUMNS = {
     "service_completed_at": "DATETIME",
 }
 
+_ELIGIBILITY_NEW_COLUMNS = {
+    "explanation": "TEXT",
+    "created_at": "DATETIME",
+}
 
-def _add_missing_appointment_columns(target_engine) -> None:
+
+def _add_missing_columns(target_engine, table: str, columns: dict[str, str]) -> None:
     inspector = inspect(target_engine)
-    if "appointments" not in inspector.get_table_names():
+    if table not in inspector.get_table_names():
         return
-    existing = {column["name"] for column in inspector.get_columns("appointments")}
+    existing = {column["name"] for column in inspector.get_columns(table)}
     with target_engine.begin() as connection:
-        for name, sql_type in _APPOINTMENT_NEW_COLUMNS.items():
+        for name, sql_type in columns.items():
             if name not in existing:
                 connection.execute(
-                    text(f"ALTER TABLE appointments ADD COLUMN {name} {sql_type}")
+                    text(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
                 )
+
+
+def _add_missing_appointment_columns(target_engine) -> None:
+    _add_missing_columns(target_engine, "appointments", _APPOINTMENT_NEW_COLUMNS)
 
 
 def init_db() -> None:
     """Create every table that does not exist yet, then add new columns."""
     Base.metadata.create_all(bind=engine)
     _add_missing_appointment_columns(engine)
+    _add_missing_columns(engine, "eligibility_checks", _ELIGIBILITY_NEW_COLUMNS)
 
 
 if __name__ == "__main__":

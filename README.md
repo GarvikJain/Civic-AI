@@ -196,7 +196,11 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | POST | `/api/v1/officers/documents/{id}/reject` | officer, administrator |
 | GET | `/api/v1/queue/status` | Module 3 status |
 | GET | `/api/v1/officers/status` | Module 4 status |
-| GET | `/api/v1/eligibility/status` | Module 5 status |
+| GET | `/api/v1/eligibility/status` | anyone |
+| GET | `/api/v1/eligibility/questionnaire/{regulation_id}` | citizen, officer, administrator |
+| POST | `/api/v1/eligibility/check` | citizen |
+| GET | `/api/v1/eligibility/checks` | signed-in user (own checks; staff may list all) |
+| GET | `/api/v1/eligibility/checks/{id}` | own check, or officer/administrator |
 | GET | `/api/v1/feedback/status` | Module 6 status |
 
 ---
@@ -443,6 +447,57 @@ Appointments are weekday-only, matching the training data.
 
 ---
 
+## Module 5: Proactive Eligibility Nudge
+
+Citizens answer a short questionnaire derived from the selected
+**Regulation** row (`eligibility_criteria` and `required_documents`). A
+deterministic rule engine returns an **advisory** result. It does **not** call
+Groq, and it does **not** block appointment creation, document upload or
+service submission.
+
+**Eligibility Nudge is an advisory screening feature. It does not constitute a
+final government eligibility decision.**
+
+```
+Regulation.eligibility_criteria
+        ↓
+supported rule extraction
+        ↓
+questionnaire (server-defined)
+        ↓
+citizen answers
+        ↓
+rule evaluation + verified-document check
+        ↓
+eligible | potentially_ineligible | manual_review
+        ↓
+EligibilityCheck (warning_issued, missing_documents, explanation)
+```
+
+The first fully supported example is the sample Income Certificate regulation
+(`data/regulations/example_income_certificate.txt`), whose stored criteria
+include:
+
+- annual household income below 2,50,000 rupees
+- resident of the district for at least one year
+- not already holding a valid income certificate issued in the same financial year
+- required documents: proof of identity, proof of residence, proof of income
+
+Criteria that cannot be parsed into those explicit comparisons become
+`manual_review` rather than a guessed rule. Phase 4 RAG remains the place to
+*ask questions about* regulation text; Phase 7 only evaluates the questionnaire.
+
+Verified Phase 5 documents count toward required documents. Pending, rejected
+and needs_review uploads do not. Missing documents set `warning_issued` but do
+not change a passing criteria result to ineligible.
+
+```powershell
+# GET  /api/v1/eligibility/questionnaire/{regulation_id}
+# POST /api/v1/eligibility/check
+```
+
+---
+
 ## Database
 
 The schema follows the CivicAI ER diagram. ERD field names such as `CitizenID`
@@ -492,9 +547,5 @@ pytest
 
 ## Next steps
 
-1. Module 1 - Regulation RAG Assistant
-2. Module 2 - Document Verification
-3. Module 3 - Queue Wait-Time Prediction
-4. Module 4 - Officer Productivity Dashboard
-5. Module 5 - Proactive Eligibility Nudge
-6. Module 6 - Citizen Feedback Sentiment Analysis
+1. Module 4 - Officer Productivity Dashboard
+2. Module 6 - Citizen Feedback Sentiment Analysis

@@ -9,15 +9,15 @@ client = TestClient(app)
 # Modules that are still placeholders.
 PLACEHOLDER_PATHS = [
     "/api/v1/officers/status",
-    "/api/v1/eligibility/status",
     "/api/v1/feedback/status",
 ]
 
-# Module 1 was implemented in Phase 4, module 2 in Phase 5, module 3 in Phase 6C.
+# Module 1 Phase 4, module 2 Phase 5, module 3 Phase 6C, module 5 Phase 7.
 IMPLEMENTED_PATHS = [
     "/api/v1/regulations/status",
     "/api/v1/documents/status",
     "/api/v1/queue/module",
+    "/api/v1/eligibility/status",
 ]
 
 

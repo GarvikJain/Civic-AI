@@ -3,11 +3,20 @@
 The result of checking whether a citizen qualifies for a scheme.
 ERD fields: CheckID, CitizenID, AppointmentID, RegulationID, Result,
 MissingDocuments, WarningIssued.
+
+Result values used by Phase 7:
+    eligible
+    potentially_ineligible
+    manual_review
+
+The check is advisory. A negative or review result does not block
+appointments or document upload.
 """
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base
@@ -29,10 +38,14 @@ class EligibilityCheck(Base):
         ForeignKey("appointments.appointment_id")
     )
     regulation_id: Mapped[int] = mapped_column(ForeignKey("regulations.regulation_id"))
-    # eligible / not_eligible / incomplete
-    result: Mapped[str] = mapped_column(String(20))
+    # eligible / potentially_ineligible / manual_review
+    result: Mapped[str] = mapped_column(String(40))
     missing_documents: Mapped[str | None] = mapped_column(Text)
     warning_issued: Mapped[bool] = mapped_column(Boolean, default=False)
+    explanation: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
     citizen: Mapped["Citizen"] = relationship(back_populates="eligibility_checks")
     appointment: Mapped["Appointment | None"] = relationship(
