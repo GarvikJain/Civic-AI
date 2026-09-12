@@ -128,6 +128,17 @@ from there); nothing requires a developer-specific absolute path.
 | `OFFICE_TIMEZONE` | Office calendar for queue depth and analytics |
 | `BACKEND_URL` | Streamlit → API base URL |
 
+### 4. Prepare the queue wait-time model
+
+The trained Queue Wait Time artifacts are intentionally gitignored. On a
+fresh clone, generate the dataset and train the selected model before using
+that feature:
+
+```powershell
+python -m ai_modules.queue_prediction.dataset_generator
+python -m ai_modules.queue_prediction.model_training
+```
+
 ---
 
 ## Running the project
