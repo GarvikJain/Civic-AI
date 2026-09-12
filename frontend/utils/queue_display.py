@@ -1,20 +1,24 @@
 """Officer queue presentation helpers.
 
 These format and order appointment cards. They do not call the API or change
-stored predicted_wait_time values. Calendar dates use OFFICE_TIMEZONE, the
-same setting as live queue depth and queue numbers.
+stored predicted_wait_time values. Calendar dates use OFFICE_TIMEZONE from the
+same .env file the rest of the frontend reads.
 """
 
+import os
 from datetime import datetime, timezone, tzinfo
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from backend.core.config import settings
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 def office_tz() -> tzinfo:
     """The configured office timezone. Appointment instants stay UTC."""
-    name = (settings.office_timezone or "UTC").strip()
+    name = (os.getenv("OFFICE_TIMEZONE") or "UTC").strip()
     if name.upper() == "UTC":
         return timezone.utc
     return ZoneInfo(name)

@@ -22,6 +22,13 @@ IST = ZoneInfo("Asia/Kolkata")
 QUEUE_PAGE = FRONTEND / "pages" / "3_Queue_Wait_Time.py"
 
 
+def test_queue_display_does_not_import_the_backend_package():
+    text = (FRONTEND / "utils" / "queue_display.py").read_text(encoding="utf-8")
+    assert "from backend" not in text
+    assert "import backend" not in text
+    assert "OFFICE_TIMEZONE" in text
+
+
 def test_officer_queue_page_shows_date_and_sorted_cards():
     text = QUEUE_PAGE.read_text(encoding="utf-8")
     assert "Appointment date:" in text
