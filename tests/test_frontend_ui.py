@@ -25,6 +25,10 @@ def test_ui_module_does_not_import_the_backend_package():
     assert "apply_theme" in text
     assert "page_header" in text
     assert "page_hero" in text
+    assert "info_rows" in text
+    assert "workflow_steps" in text
+    assert "appointment_status_chip" in text
+    assert "predicted_wait_block" in text
     assert "service_card" in text
     assert "render_sidebar_nav" in text
     assert "#12355B" in text

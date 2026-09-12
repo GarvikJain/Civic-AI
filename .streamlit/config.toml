@@ -3,3 +3,16 @@ showSidebarNavigation = false
 
 [browser]
 gatherUsageStats = false
+
+# Visible st.file_uploader hint. The backend still enforces 10 MB itself.
+[server]
+maxUploadSize = 10
+
+# Native widgets use secondaryBackgroundColor. Keep them light so date/time
+# and select controls do not render as charcoal blocks.
+[theme]
+base = "light"
+primaryColor = "#1D70B8"
+backgroundColor = "#EAF2F8"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#17202A"

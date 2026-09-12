@@ -149,11 +149,29 @@ _THEME_CSS = f"""
   }}
   div[data-testid="stTextInput"] input,
   div[data-testid="stTextArea"] textarea,
+  div[data-testid="stNumberInput"] input,
   div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
-  div[data-testid="stNumberInput"] input {{
-    background: {SURFACE};
-    border-color: {BORDER};
-    color: {TEXT};
+  div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+  [data-testid="stDateInputField"],
+  [data-testid="stDateInput"] input,
+  [data-testid="stTimeInputTimeDisplay"],
+  [data-testid="stTimeInput"] input {{
+    background: {SURFACE} !important;
+    background-color: {SURFACE} !important;
+    border-color: {BORDER} !important;
+    color: {NAVY} !important;
+  }}
+  [data-testid="stDateInput"],
+  [data-testid="stTimeInput"],
+  [data-testid="stSelectbox"] {{
+    color: {CHARCOAL};
+  }}
+  [data-baseweb="popover"],
+  [data-baseweb="menu"],
+  [data-baseweb="calendar-container"],
+  [data-testid="stDateInputCalendar"] {{
+    background: {SURFACE} !important;
+    color: {CHARCOAL} !important;
   }}
   .stButton > button,
   .stFormSubmitButton > button {{
@@ -465,7 +483,8 @@ _THEME_CSS = f"""
     padding: 0.7rem 1.05rem 0.75rem 1.05rem;
     margin: 0 0 0.9rem 0;
   }}
-  .st-key-civicai-query-error {{
+  .st-key-civicai-query-error,
+  [class*="st-key-civicai-query-error"] {{
     background: {ERROR_BG};
     border: 1px solid #E2A3A3;
     border-radius: 8px;
@@ -480,6 +499,235 @@ _THEME_CSS = f"""
   }}
   [data-testid="stSpinner"] {{
     color: {NAVY};
+  }}
+  .civicai-workflow {{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.45rem;
+    margin: 0 0 1.1rem 0;
+    color: {MUTED_TEXT};
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }}
+  .civicai-workflow-sep {{
+    color: {CIVIC_BLUE};
+    font-weight: 650;
+  }}
+  .civicai-info-row {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.85rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid {BORDER};
+  }}
+  .civicai-info-row:last-child {{
+    border-bottom: 0;
+    padding-bottom: 0;
+  }}
+  .civicai-info-label {{
+    min-width: 8.5rem;
+    color: {MUTED_TEXT} !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }}
+  .civicai-info-value {{
+    color: {CHARCOAL} !important;
+    font-size: 0.95rem;
+  }}
+  .civicai-status-reason {{
+    margin: 0.45rem 0 0 0;
+    color: {CHARCOAL} !important;
+    font-size: 1.02rem;
+    font-weight: 650;
+    line-height: 1.45;
+  }}
+  .st-key-civicai-upload {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 1.05rem 1.2rem 1rem 1.2rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  .st-key-civicai-upload .stButton > button,
+  .st-key-civicai-book .stButton > button {{
+    background: {CIVIC_BLUE};
+    border-color: {CIVIC_BLUE};
+    color: {SURFACE};
+    min-width: 9.5rem;
+    font-weight: 650;
+  }}
+  .st-key-civicai-book {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 1.05rem 1.2rem 1rem 1.2rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  .st-key-civicai-prediction,
+  [class*="st-key-civicai-prediction"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 1rem 1.2rem 0.95rem 1.2rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  .st-key-civicai-appointments,
+  .st-key-civicai-officer {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem 1rem 1.1rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  .st-key-civicai-officer {{
+    background: {LIGHT_BLUE};
+    border-left: 4px solid {NAVY};
+  }}
+  .civicai-wait-value {{
+    margin: 0.1rem 0 0.35rem 0;
+    color: {NAVY} !important;
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }}
+  .civicai-status-chip {{
+    display: inline-block;
+    padding: 0.14rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }}
+  .civicai-status-scheduled {{
+    background: {LIGHT_BLUE};
+    color: {CIVIC_BLUE} !important;
+  }}
+  .civicai-status-in_service {{
+    background: #E7F3EC;
+    color: {SUCCESS} !important;
+  }}
+  .civicai-status-completed {{
+    background: #E7F3EC;
+    color: {SUCCESS} !important;
+  }}
+  .civicai-status-cancelled {{
+    background: {ERROR_BG};
+    color: {ERROR} !important;
+  }}
+  .st-key-civicai-upload [data-testid="stFileUploader"] {{
+    background: {LIGHT_BLUE};
+    border: 0;
+    border-radius: 6px;
+    padding: 0;
+  }}
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzone"] {{
+    background: {SURFACE} !important;
+    border: 1px dashed {CIVIC_BLUE} !important;
+    border-radius: 6px !important;
+    color: {NAVY} !important;
+  }}
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzoneInstructions"],
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzoneInstructions"] p,
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzoneInstructions"] span,
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzoneInstructions"] small {{
+    color: {NAVY} !important;
+  }}
+  .st-key-civicai-upload [data-testid="stFileUploaderDropzone"] button {{
+    background: {CIVIC_BLUE} !important;
+    border: 1px solid {CIVIC_BLUE} !important;
+    color: {SURFACE} !important;
+  }}
+  .st-key-civicai-doc-list {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem 1rem 1.1rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  [class*="st-key-civicai-verified"] {{
+    background: #E7F3EC;
+    border: 1px solid #B7D7C4;
+    border-left: 4px solid {SUCCESS};
+    border-radius: 8px;
+    padding: 0.9rem 1.15rem 0.95rem 1.15rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-rejected"] {{
+    background: {ERROR_BG};
+    border: 1px solid #E2A3A3;
+    border-left: 4px solid {ERROR};
+    border-radius: 8px;
+    padding: 0.9rem 1.15rem 0.95rem 1.15rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-review"] {{
+    background: {WARNING_BG};
+    border: 1px solid #E0C96A;
+    border-left: 4px solid {WARNING};
+    border-radius: 8px;
+    padding: 0.9rem 1.15rem 0.95rem 1.15rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-pending"] {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 0.9rem 1.15rem 0.95rem 1.15rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-doc-info"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem 0.9rem 1.1rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-doc-actions"] {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 0.7rem 1rem 0.8rem 1rem;
+    margin: 0 0 0.4rem 0;
+  }}
+  [class*="st-key-civicai-verified"] h3 {{
+    color: {SUCCESS};
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin: 0 0 0.4rem 0;
+  }}
+  [class*="st-key-civicai-rejected"] h3,
+  [class*="st-key-civicai-review"] h3,
+  [class*="st-key-civicai-pending"] h3,
+  [class*="st-key-civicai-doc-info"] h3,
+  [class*="st-key-civicai-doc-actions"] h3 {{
+    color: {NAVY};
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin: 0 0 0.4rem 0;
+  }}
+  [class*="st-key-civicai-review"] h3 {{
+    color: {CHARCOAL};
+  }}
+  [class*="st-key-civicai-verified"] [data-testid="stAlert"],
+  [class*="st-key-civicai-rejected"] [data-testid="stAlert"],
+  [class*="st-key-civicai-review"] [data-testid="stAlert"],
+  [class*="st-key-civicai-pending"] [data-testid="stAlert"] {{
+    background: transparent;
+    border: 0;
   }}
 </style>
 """
@@ -658,6 +906,61 @@ def surface(key: str) -> Iterator[None]:
     """Style a Streamlit container using the shared CivicAI surface keys."""
     with st.container(key=key):
         yield
+
+
+def workflow_steps(steps: Sequence[str]) -> None:
+    """Restrained workflow label. Steps are existing page stages, not metrics."""
+    parts: list[str] = []
+    for index, step in enumerate(steps):
+        if index:
+            parts.append('<span class="civicai-workflow-sep">→</span>')
+        parts.append(f'<span class="civicai-workflow-step">{_escape(step)}</span>')
+    st.markdown(f'<div class="civicai-workflow">{"".join(parts)}</div>', unsafe_allow_html=True)
+
+
+_APPOINTMENT_STATUS_LABELS = {
+    "scheduled": "Scheduled",
+    "in_service": "In service",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+}
+
+
+def appointment_status_chip(status: str) -> None:
+    """Label an existing appointment status. Unknown values are shown as-is."""
+    key = (status or "").strip()
+    label = _APPOINTMENT_STATUS_LABELS.get(key, key or "Unknown")
+    css = f"civicai-status-chip civicai-status-{_escape(key)}" if key in _APPOINTMENT_STATUS_LABELS else "civicai-status-chip"
+    st.markdown(f'<span class="{css}">{_escape(label)}</span>', unsafe_allow_html=True)
+
+
+def predicted_wait_block(minutes_label: str) -> None:
+    """Emphasize the existing predicted wait without inventing a number."""
+    st.markdown(
+        f'<p class="civicai-kicker">Predicted wait</p>'
+        f'<p class="civicai-wait-value">{_escape(minutes_label)} minutes</p>'
+        '<p class="civicai-section-caption">This is an estimate, not a guaranteed wait time.</p>',
+        unsafe_allow_html=True,
+    )
+
+
+def info_rows(rows: Sequence[tuple[str, object]]) -> None:
+    """Compact labelled rows. Empty values are omitted."""
+    parts: list[str] = []
+    for label, value in rows:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        parts.append(
+            '<div class="civicai-info-row">'
+            f'<span class="civicai-info-label">{_escape(label)}</span>'
+            f'<span class="civicai-info-value">{_escape(text)}</span>'
+            "</div>"
+        )
+    if parts:
+        st.markdown("".join(parts), unsafe_allow_html=True)
 
 
 def render_citations(citations: Sequence[dict]) -> None:
