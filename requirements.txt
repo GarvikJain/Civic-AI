@@ -22,6 +22,8 @@ bcrypt>=4.1
 # --- Frontend ---
 streamlit>=1.32
 requests>=2.31
+# CookieManager: persist the JWT across a normal Streamlit browser refresh.
+extra-streamlit-components>=0.1.71
 
 # --- AI: retrieval / embeddings / knowledge graph ---
 chromadb>=0.4.24

@@ -1,26 +1,46 @@
 """Shared sign-in box for the Streamlit pages.
 
-The token is kept in st.session_state, so a page can call the authenticated
-endpoints of the backend.
+The JWT is kept in st.session_state for the current Streamlit session and
+written to a first-party browser cookie so a normal page refresh can restore
+the login. CookieManager writes are queued and flushed on a later run that
+is allowed to finish (set/delete must not share a run with st.rerun()).
+The password is never stored.
 """
 
 import streamlit as st
 from requests import HTTPError
 
 from utils.api_client import get, post
+from utils.auth_store import (
+    COOKIE_NAME,
+    SKIP_RESTORE_KEY,
+    apply_identity,
+    flush_cookie_op,
+    get_browser_token_store,
+    identity_from_token,
+    logout,
+    pending_cookie_op,
+    persist_token,
+    queue_persist,
+    read_http_cookies,
+    restore_session,
+)
+
+
+def _fetch_me(token: str) -> dict:
+    return get("/auth/me", token=token)
 
 
 def _store_session(token: str, email: str) -> None:
+    queue_persist(st.session_state, token)
     st.session_state["token"] = token
     st.session_state["email"] = email
-    try:
-        me = get("/auth/me", token=token)
-    except Exception:
+    identity = identity_from_token(token, _fetch_me)
+    if identity is None:
         st.session_state["role"] = None
         st.session_state["full_name"] = None
         return
-    st.session_state["role"] = me.get("role")
-    st.session_state["full_name"] = me.get("full_name")
+    apply_identity(st.session_state, token, identity)
 
 
 def current_role() -> str | None:
@@ -29,13 +49,34 @@ def current_role() -> str | None:
 
 def sidebar_login() -> str | None:
     """Show a sign-in box in the sidebar and return the JWT, if signed in."""
+    store = get_browser_token_store()
+    flushed = flush_cookie_op(st.session_state, store)
+    restore_session(
+        st.session_state,
+        store,
+        _fetch_me,
+        http_cookies=read_http_cookies(),
+    )
+    # Keep the matching CookieManager iframe mounted. A one-shot set/delete is
+    # torn down before the browser JS writes document.cookie.
+    if st.session_state.get(SKIP_RESTORE_KEY):
+        if flushed != "delete":
+            store.delete(COOKIE_NAME)
+    elif (
+        st.session_state.get("token")
+        and pending_cookie_op(st.session_state) != "delete"
+        and flushed != "set"
+    ):
+        persist_token(store, st.session_state["token"])
+
     with st.sidebar:
         st.subheader("Account")
 
         if st.session_state.get("token"):
             if not st.session_state.get("role"):
                 _store_session(
-                    st.session_state["token"], st.session_state.get("email", "")
+                    st.session_state["token"],
+                    st.session_state.get("email", ""),
                 )
             st.success(
                 f"Signed in as {st.session_state.get('email', '')}"
@@ -46,8 +87,7 @@ def sidebar_login() -> str | None:
                 )
             )
             if st.button("Sign out"):
-                for key in ("token", "email", "role", "full_name"):
-                    st.session_state.pop(key, None)
+                logout(st.session_state)
                 st.rerun()
             return st.session_state["token"]
 
