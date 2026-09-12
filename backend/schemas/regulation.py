@@ -13,6 +13,18 @@ class RegulationCreate(BaseModel):
     circular_reference: str | None = Field(default=None, max_length=200)
 
 
+class RegulationUpdate(BaseModel):
+    """Partial update of a stored scheme. Omitted fields stay unchanged."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scheme_name: str | None = Field(default=None, min_length=1, max_length=200)
+    department: str | None = Field(default=None, min_length=1, max_length=120)
+    eligibility_criteria: str | None = None
+    required_documents: str | None = None
+    circular_reference: str | None = Field(default=None, max_length=200)
+
+
 class RegulationRead(BaseModel):
     """A stored regulation as returned by the API."""
 

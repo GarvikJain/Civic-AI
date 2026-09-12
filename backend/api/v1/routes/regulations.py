@@ -20,9 +20,11 @@ from backend.schemas.regulation import (
     RegulationIngestResult,
     RegulationQuery,
     RegulationRead,
+    RegulationUpdate,
 )
 from backend.services import regulation_service
 from backend.services.citizen_service import CitizenProfileMissingError
+from backend.services.regulation_service import RegulationNotFoundError
 
 router = APIRouter(prefix="/regulations", tags=["regulation-rag"])
 
@@ -54,6 +56,23 @@ def create_regulation(
 ) -> Regulation:
     """Register a government scheme. Administrators only."""
     return regulation_service.create_regulation(db, data)
+
+
+@router.patch(
+    "/{regulation_id}",
+    response_model=RegulationRead,
+    dependencies=[Depends(require_role(Role.ADMINISTRATOR))],
+)
+def update_regulation(
+    regulation_id: int, data: RegulationUpdate, db: Session = Depends(get_db)
+) -> Regulation:
+    """Update supplied fields on an existing scheme. Administrators only."""
+    try:
+        return regulation_service.update_regulation(db, regulation_id, data)
+    except RegulationNotFoundError as error:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND, detail=str(error)
+        )
 
 
 @router.post("/query", response_model=RegulationAnswer)

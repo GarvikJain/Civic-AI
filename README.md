@@ -208,6 +208,7 @@ current_user: User = Depends(require_role(Role.OFFICER, Role.ADMINISTRATOR))
 | GET | `/api/v1/officers/dashboard/summary` | officer, administrator |
 | GET | `/api/v1/regulations` | any signed-in user (list schemes) |
 | POST | `/api/v1/regulations` | administrator |
+| PATCH | `/api/v1/regulations/{id}` | administrator |
 | GET | `/api/v1/regulations/status` | anyone |
 | POST | `/api/v1/regulations/query` | any signed-in user |
 | POST | `/api/v1/regulations/ingest` | administrator |

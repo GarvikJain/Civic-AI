@@ -382,3 +382,101 @@ def test_module_status_is_available(client):
     response = client.get("/api/v1/eligibility/status")
     assert response.status_code == 200
     assert response.json()["status"] == "available"
+
+
+def test_patched_regulation_one_enables_automatic_eligibility_paths(
+    client, session_factory
+):
+    """Ingested rows can have null structured fields until an admin PATCHes them."""
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    created = client.post(
+        "/api/v1/regulations",
+        json={
+            "scheme_name": "Example Income Certificate Scheme",
+            "department": "Revenue",
+            "circular_reference": "EXAMPLE/CIRC/2026/01",
+        },
+        headers=admin,
+    )
+    assert created.status_code == 201
+    assert created.json()["regulation_id"] == 1
+    assert created.json()["eligibility_criteria"] is None
+    assert created.json()["required_documents"] is None
+
+    patched = client.patch(
+        "/api/v1/regulations/1",
+        json={
+            "eligibility_criteria": SAMPLE_CRITERIA,
+            "required_documents": SAMPLE_DOCUMENTS,
+        },
+        headers=admin,
+    )
+    assert patched.status_code == 200
+    assert patched.json()["scheme_name"] == "Example Income Certificate Scheme"
+    assert patched.json()["department"] == "Revenue"
+    assert patched.json()["circular_reference"] == "EXAMPLE/CIRC/2026/01"
+    assert patched.json()["eligibility_criteria"] == SAMPLE_CRITERIA
+    assert patched.json()["required_documents"] == SAMPLE_DOCUMENTS
+
+    questions = client.get(
+        "/api/v1/eligibility/questionnaire/1", headers=admin
+    ).json()
+    fields = {item["field_name"] for item in questions["questions"]}
+    assert fields == {
+        "annual_household_income",
+        "resident_of_district_at_least_one_year",
+        "holds_income_certificate_this_year",
+    }
+    assert "advisory" in questions["advisory_notice"].lower()
+
+    citizen = citizen_header(client, "reg1-elig@example.com")
+    for document_type in ("Identity Proof", "Residence Proof", "Income Proof"):
+        add_document(session_factory, "reg1-elig@example.com", document_type)
+
+    eligible = client.post(
+        "/api/v1/eligibility/check",
+        json={"regulation_id": 1, "answers": PASSING},
+        headers=citizen,
+    )
+    assert eligible.status_code == 201, eligible.text
+    assert eligible.json()["result"] == "eligible"
+    assert eligible.json()["warning_issued"] is False
+    assert eligible.json()["missing_documents"] == []
+
+    failing = dict(PASSING)
+    failing["annual_household_income"] = 250000
+    ineligible = client.post(
+        "/api/v1/eligibility/check",
+        json={"regulation_id": 1, "answers": failing},
+        headers=citizen,
+    )
+    assert ineligible.status_code == 201
+    assert ineligible.json()["result"] == "potentially_ineligible"
+
+    booked = client.post(
+        "/api/v1/queue/appointments",
+        json={
+            "service_type": "Income Certificate",
+            "appointment_date": booking_slot(),
+        },
+        headers=citizen,
+    )
+    assert booked.status_code == 201
+
+    ambiguous = client.post(
+        "/api/v1/regulations",
+        json={
+            "scheme_name": "Ambiguous Scheme",
+            "department": "Revenue",
+            "eligibility_criteria": "Applicants must be residents of the district.",
+        },
+        headers=admin,
+    )
+    assert ambiguous.status_code == 201
+    review = client.post(
+        "/api/v1/eligibility/check",
+        json={"regulation_id": ambiguous.json()["regulation_id"], "answers": {}},
+        headers=citizen,
+    )
+    assert review.status_code == 201
+    assert review.json()["result"] == "manual_review"

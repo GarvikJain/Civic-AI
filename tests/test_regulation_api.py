@@ -359,3 +359,120 @@ def test_signed_in_users_can_list_regulations_but_guests_cannot(
         assert response.status_code == 200, response.text
         assert response.json()[0]["scheme_name"] == REGULATION["scheme_name"]
     assert client.get("/api/v1/regulations").status_code == 401
+
+
+def test_administrator_can_update_a_regulation(client, session_factory):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    created = client.post("/api/v1/regulations", json=REGULATION, headers=admin)
+    regulation_id = created.json()["regulation_id"]
+    response = client.patch(
+        f"/api/v1/regulations/{regulation_id}",
+        json={
+            "eligibility_criteria": "Annual household income is below 2,50,000 rupees.",
+            "required_documents": "Proof of identity, proof of residence, proof of income.",
+        },
+        headers=admin,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["regulation_id"] == regulation_id
+    assert body["scheme_name"] == REGULATION["scheme_name"]
+    assert body["department"] == REGULATION["department"]
+    assert body["eligibility_criteria"].startswith("Annual household income")
+    assert "proof of income" in body["required_documents"].lower()
+
+    db = session_factory()
+    try:
+        stored = db.get(Regulation, regulation_id)
+        assert stored.eligibility_criteria == body["eligibility_criteria"]
+        assert stored.required_documents == body["required_documents"]
+        assert stored.scheme_name == REGULATION["scheme_name"]
+    finally:
+        db.close()
+
+
+def test_regulation_update_is_administrator_only(client, session_factory):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    regulation_id = client.post(
+        "/api/v1/regulations", json=REGULATION, headers=admin
+    ).json()["regulation_id"]
+    payload = {"department": "Transport"}
+    citizen = citizen_header(client, "reg-update-citizen@example.com")
+    officer = role_header(client, session_factory, Role.OFFICER)
+    assert client.patch(
+        f"/api/v1/regulations/{regulation_id}", json=payload, headers=citizen
+    ).status_code == 403
+    assert client.patch(
+        f"/api/v1/regulations/{regulation_id}", json=payload, headers=officer
+    ).status_code == 403
+    assert client.patch(
+        f"/api/v1/regulations/{regulation_id}", json=payload
+    ).status_code == 401
+    stored = client.get("/api/v1/regulations", headers=admin).json()[0]
+    assert stored["department"] == "Revenue"
+
+
+def test_updating_a_missing_regulation_is_404(client, session_factory):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    response = client.patch(
+        "/api/v1/regulations/99999",
+        json={"department": "Revenue"},
+        headers=admin,
+    )
+    assert response.status_code == 404
+
+
+def test_partial_regulation_patch_preserves_omitted_fields(client, session_factory):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    created = client.post(
+        "/api/v1/regulations",
+        json={
+            "scheme_name": "Kept Scheme",
+            "department": "Revenue",
+            "eligibility_criteria": "Original criteria",
+            "required_documents": "Original documents",
+            "circular_reference": "CIRC/KEEP/1",
+        },
+        headers=admin,
+    )
+    regulation_id = created.json()["regulation_id"]
+    response = client.patch(
+        f"/api/v1/regulations/{regulation_id}",
+        json={"eligibility_criteria": "Updated criteria only"},
+        headers=admin,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["scheme_name"] == "Kept Scheme"
+    assert body["department"] == "Revenue"
+    assert body["required_documents"] == "Original documents"
+    assert body["circular_reference"] == "CIRC/KEEP/1"
+    assert body["eligibility_criteria"] == "Updated criteria only"
+
+
+def test_regulation_update_rejects_unknown_body_fields(client, session_factory):
+    admin = role_header(client, session_factory, Role.ADMINISTRATOR)
+    regulation_id = client.post(
+        "/api/v1/regulations", json=REGULATION, headers=admin
+    ).json()["regulation_id"]
+    response = client.patch(
+        f"/api/v1/regulations/{regulation_id}",
+        json={"regulation_id": 99, "department": "Revenue"},
+        headers=admin,
+    )
+    assert response.status_code == 422
+
+
+def test_frontend_has_admin_regulation_update_section():
+    from pathlib import Path
+
+    text = (
+        Path(__file__).resolve().parents[1]
+        / "frontend"
+        / "pages"
+        / "1_Regulation_Assistant.py"
+    ).read_text(encoding="utf-8")
+    assert "Administrator: register a scheme" in text
+    assert "Administrator: update existing regulation" in text
+    assert 'role == "administrator"' in text
+    assert "patch(" in text

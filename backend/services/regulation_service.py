@@ -18,8 +18,13 @@ from backend.schemas.regulation import (
     RegulationAnswer,
     RegulationCreate,
     RegulationIngestResult,
+    RegulationUpdate,
 )
 from backend.services import citizen_service
+
+
+class RegulationNotFoundError(Exception):
+    """The requested regulation does not exist."""
 
 
 def create_regulation(db: Session, data: RegulationCreate) -> Regulation:
@@ -36,6 +41,21 @@ def list_regulations(db: Session) -> list[Regulation]:
     return list(
         db.scalars(select(Regulation).order_by(Regulation.scheme_name, Regulation.regulation_id))
     )
+
+
+def update_regulation(
+    db: Session, regulation_id: int, data: RegulationUpdate
+) -> Regulation:
+    """Apply supplied fields to an existing scheme. Omitted fields stay as they are."""
+    regulation = db.get(Regulation, regulation_id)
+    if regulation is None:
+        raise RegulationNotFoundError(f"Regulation {regulation_id} was not found.")
+    updates = data.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(regulation, field, value)
+    db.commit()
+    db.refresh(regulation)
+    return regulation
 
 
 def get_rag_pipeline():

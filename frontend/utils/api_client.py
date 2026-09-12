@@ -41,6 +41,24 @@ def get(
     return response.json()
 
 
+def patch(
+    path: str,
+    payload: dict,
+    token: str | None = None,
+    timeout: int | None = None,
+) -> Any:
+    """Send a PATCH request with a JSON body and return the JSON response."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.patch(
+        _url(path),
+        json=payload,
+        headers=headers,
+        timeout=timeout or TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def post(
     path: str,
     payload: dict,

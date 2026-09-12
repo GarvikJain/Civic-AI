@@ -3,7 +3,7 @@
 import streamlit as st
 from requests import HTTPError
 
-from utils.api_client import get, post
+from utils.api_client import get, patch, post
 from utils.auth import current_role, sidebar_login
 
 st.title("Regulation RAG Assistant")
@@ -62,6 +62,80 @@ if role == "administrator" and token:
             except ValueError:
                 pass
             st.error(detail)
+
+    st.subheader("Administrator: update existing regulation")
+    st.caption(
+        "Structured eligibility fields are maintained here. Ingested RAG "
+        "documents are not replaced."
+    )
+    try:
+        existing = get("/regulations", token=token)
+    except HTTPError as error:
+        detail = error.response.text
+        try:
+            detail = error.response.json().get("detail", detail)
+        except ValueError:
+            pass
+        st.error(detail)
+        existing = []
+    except Exception:
+        st.error("Backend is not reachable.")
+        existing = []
+
+    if not existing:
+        st.caption("No schemes are registered yet.")
+    else:
+        selected = st.selectbox(
+            "Regulation",
+            existing,
+            format_func=lambda row: f"#{row['regulation_id']} {row['scheme_name']}",
+            key="update-regulation-choice",
+        )
+        with st.form("update-regulation"):
+            update_name = st.text_input("Scheme name", value=selected["scheme_name"])
+            update_department = st.text_input("Department", value=selected["department"])
+            update_criteria = st.text_area(
+                "Eligibility criteria",
+                value=selected.get("eligibility_criteria") or "",
+                height=80,
+            )
+            update_documents = st.text_area(
+                "Required documents",
+                value=selected.get("required_documents") or "",
+                height=60,
+            )
+            update_circular = st.text_input(
+                "Circular reference",
+                value=selected.get("circular_reference") or "",
+            )
+            updated = st.form_submit_button("Update regulation")
+        if updated:
+            if not update_name.strip() or not update_department.strip():
+                st.warning("Scheme name and department are required.")
+            else:
+                try:
+                    result = patch(
+                        f"/regulations/{selected['regulation_id']}",
+                        {
+                            "scheme_name": update_name.strip(),
+                            "department": update_department.strip(),
+                            "eligibility_criteria": update_criteria.strip() or None,
+                            "required_documents": update_documents.strip() or None,
+                            "circular_reference": update_circular.strip() or None,
+                        },
+                        token=token,
+                    )
+                    st.success(
+                        f"Updated regulation #{result['regulation_id']} "
+                        f"({result['scheme_name']})."
+                    )
+                except HTTPError as error:
+                    detail = error.response.text
+                    try:
+                        detail = error.response.json().get("detail", detail)
+                    except ValueError:
+                        pass
+                    st.error(detail)
 
 question = st.text_area(
     "Your question",
