@@ -151,8 +151,8 @@ Run both commands **from the project root**, in two terminals.
 uvicorn backend.main:app --reload
 ```
 
-- API: http://127.0.0.1:8000
-- Interactive docs: http://127.0.0.1:8000/docs
+- API: http://127.0.0.1:8020
+- Interactive docs: http://127.0.0.1:8020/docs
 
 ### Frontend (Streamlit)
 
