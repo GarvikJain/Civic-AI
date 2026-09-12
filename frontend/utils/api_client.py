@@ -17,6 +17,8 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 API_PREFIX = "/api/v1"
 TIMEOUT_SECONDS = 10
+# First Regulation RAG query may load embedding/reranker models.
+REGULATION_QUERY_TIMEOUT_SECONDS = 120
 
 
 def _url(path: str) -> str:
@@ -66,6 +68,8 @@ def post(
     timeout: int | None = None,
 ) -> Any:
     """Send a POST request with a JSON body and return the JSON response."""
+    if timeout is None and path == "/regulations/query":
+        timeout = REGULATION_QUERY_TIMEOUT_SECONDS
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     response = requests.post(
         _url(path),

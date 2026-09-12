@@ -361,9 +361,10 @@ def test_home_page_apptest_restores_login_and_logout(monkeypatch):
     at = AppTest.from_file(str(FRONTEND / "app.py"), default_timeout=10)
     at.run()
     assert not at.exception
-    signed_in = [item.value for item in at.sidebar.success]
-    assert any("citizen@example.com" in str(value) for value in signed_in)
-    assert any("citizen" in str(value) for value in signed_in)
+    sidebar = " ".join(str(item.value) for item in at.sidebar.markdown)
+    assert "citizen@example.com" in sidebar
+    assert "citizen" in sidebar
+    assert "Signed in as" in sidebar
     assert at.session_state["role"] == "citizen"
 
     sign_out = [button for button in at.sidebar.button if button.label == "Sign out"]

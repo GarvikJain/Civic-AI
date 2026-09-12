@@ -10,14 +10,29 @@ import streamlit as st
 
 from utils.api_client import check_backend, get
 from utils.auth import current_role, sidebar_login
+from utils.ui import (
+    ADMIN_SERVICES,
+    CITIZEN_SERVICES,
+    OFFICER_SERVICES,
+    current_user_name,
+    empty_state,
+    info_card,
+    page_header,
+    render_service_cards,
+    section_header,
+)
 
 st.set_page_config(page_title="CivicAI", page_icon="🏛️", layout="wide")
 
-st.title("🏛️ CivicAI")
-st.caption("An AI-Powered Intelligent Citizen Service Platform for Government Offices")
-
 token = sidebar_login()
 role = current_role()
+
+page_header("CivicAI", "Intelligent Citizen Service Platform")
+st.markdown(
+    '<p class="civicai-lede">AI-powered assistance for faster, clearer '
+    "and more accountable government services.</p>",
+    unsafe_allow_html=True,
+)
 
 health = check_backend()
 if health is None:
@@ -26,39 +41,32 @@ if health is None:
         "`uvicorn backend.main:app --reload`"
     )
 else:
-    st.success(f"Connected to backend: {health['app_name']} v{health['version']}")
+    st.caption(f"Connected to {health['app_name']} {health['version']}")
 
 if token and role == "citizen":
+    section_header(f"Welcome back, {current_user_name()}")
     try:
         dashboard = get("/citizens/dashboard", token=token)
-        st.info(dashboard.get("message", "Citizen services are available."))
+        info_card(dashboard.get("message", "Citizen services are available."))
     except Exception:
         st.caption("Citizen dashboard could not be loaded.")
+    section_header("Citizen services", "Open a service from a card or the sidebar.")
+    render_service_cards(CITIZEN_SERVICES)
 elif token and role in ("officer", "administrator"):
-    st.info(
-        "Open Officer Productivity Dashboard from the sidebar for analytics, "
-        "document review and flagged feedback."
+    section_header(f"Welcome back, {current_user_name()}")
+    info_card(
+        "Use the operational pages for queue management, document review "
+        "and flagged feedback."
     )
+    section_header("Operations", "Tools for officers and administrators.")
+    cards = list(OFFICER_SERVICES)
+    if role == "administrator":
+        cards = list(ADMIN_SERVICES)
+    render_service_cards(cards)
+    section_header("Citizen services", "The public services remain available.")
+    render_service_cards(CITIZEN_SERVICES)
 else:
-    st.caption("Sign in or register from the sidebar to use citizen services.")
-
-st.divider()
-
-st.subheader("Modules")
-st.write(
-    "Use the sidebar to open a module. Regulation answers, document checks, "
-    "queue prediction, eligibility screening, citizen feedback and the officer "
-    "productivity dashboard are available."
-)
-
-modules = [
-    ("1. Regulation RAG Assistant", "Ask questions about government regulations."),
-    ("2. Document Verification", "Check uploaded documents with OCR."),
-    ("3. Queue Wait-Time Prediction", "Estimate waiting time at an office."),
-    ("4. Officer Productivity Dashboard", "Track how officers handle applications."),
-    ("5. Proactive Eligibility Nudge", "Suggest schemes a citizen can apply for."),
-    ("6. Citizen Feedback Sentiment", "Analyse feedback left by citizens."),
-]
-
-for name, description in modules:
-    st.markdown(f"**{name}** - {description}")
+    section_header("Welcome")
+    empty_state("Sign in or register from the sidebar to use CivicAI services.")
+    section_header("Available services")
+    render_service_cards(CITIZEN_SERVICES)

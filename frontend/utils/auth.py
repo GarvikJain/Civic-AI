@@ -11,6 +11,12 @@ import streamlit as st
 from requests import HTTPError
 
 from utils.api_client import get, post
+from utils.ui import (
+    apply_theme,
+    render_sidebar_brand,
+    render_sidebar_nav,
+    render_signed_in_account,
+)
 from utils.auth_store import (
     COOKIE_NAME,
     SKIP_RESTORE_KEY,
@@ -69,8 +75,12 @@ def sidebar_login() -> str | None:
     ):
         persist_token(store, st.session_state["token"])
 
+    apply_theme()
+
     with st.sidebar:
-        st.subheader("Account")
+        render_sidebar_brand()
+        render_sidebar_nav()
+        st.markdown('<p class="civicai-nav-label">Account</p>', unsafe_allow_html=True)
 
         if st.session_state.get("token"):
             if not st.session_state.get("role"):
@@ -78,15 +88,12 @@ def sidebar_login() -> str | None:
                     st.session_state["token"],
                     st.session_state.get("email", ""),
                 )
-            st.success(
-                f"Signed in as {st.session_state.get('email', '')}"
-                + (
-                    f" ({st.session_state['role']})"
-                    if st.session_state.get("role")
-                    else ""
-                )
+            render_signed_in_account(
+                st.session_state.get("email", ""),
+                st.session_state.get("role"),
+                st.session_state.get("full_name"),
             )
-            if st.button("Sign out"):
+            if st.button("Sign out", width="stretch"):
                 logout(st.session_state)
                 st.rerun()
             return st.session_state["token"]
