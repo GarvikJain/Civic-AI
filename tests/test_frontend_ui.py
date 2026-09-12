@@ -29,6 +29,7 @@ def test_ui_module_does_not_import_the_backend_package():
     assert "workflow_steps" in text
     assert "appointment_status_chip" in text
     assert "predicted_wait_block" in text
+    assert "eligibility_result_chip" in text
     assert "service_card" in text
     assert "render_sidebar_nav" in text
     assert "#12355B" in text

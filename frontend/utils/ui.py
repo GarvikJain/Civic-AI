@@ -555,7 +555,8 @@ _THEME_CSS = f"""
     margin: 0 0 1.1rem 0;
   }}
   .st-key-civicai-upload .stButton > button,
-  .st-key-civicai-book .stButton > button {{
+  .st-key-civicai-book .stButton > button,
+  .st-key-civicai-questions .stButton > button {{
     background: {CIVIC_BLUE};
     border-color: {CIVIC_BLUE};
     color: {SURFACE};
@@ -622,6 +623,98 @@ _THEME_CSS = f"""
   .civicai-status-cancelled {{
     background: {ERROR_BG};
     color: {ERROR} !important;
+  }}
+  .st-key-civicai-scheme,
+  .st-key-civicai-questions {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 1.05rem 1.2rem 1rem 1.2rem;
+    margin: 0 0 1.1rem 0;
+    overflow: visible;
+    position: relative;
+  }}
+  .st-key-civicai-history {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem 1rem 1.1rem;
+    margin: 0 0 1.1rem 0;
+  }}
+  [class*="st-key-civicai-eligible"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {SUCCESS};
+    border-radius: 8px;
+    padding: 0.7rem 1rem 0.75rem 1rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-ineligible"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {WARNING};
+    border-radius: 8px;
+    padding: 0.7rem 1rem 0.75rem 1rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-manual"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 0.7rem 1rem 0.75rem 1rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-eligible"] .civicai-kicker {{
+    color: {SUCCESS};
+  }}
+  [class*="st-key-civicai-ineligible"] .civicai-kicker {{
+    color: {WARNING};
+  }}
+  [class*="st-key-civicai-manual"] .civicai-kicker {{
+    color: {CIVIC_BLUE};
+  }}
+  [class*="st-key-civicai-eligible"] .civicai-status-reason {{
+    color: {SUCCESS} !important;
+    font-size: 1.12rem;
+    margin: 0 0 0.35rem 0;
+  }}
+  [class*="st-key-civicai-ineligible"] .civicai-status-reason {{
+    color: {CHARCOAL} !important;
+    font-size: 1.12rem;
+    margin: 0 0 0.35rem 0;
+  }}
+  [class*="st-key-civicai-manual"] .civicai-status-reason {{
+    color: {NAVY} !important;
+    font-size: 1.12rem;
+    margin: 0 0 0.35rem 0;
+  }}
+  [class*="st-key-civicai-eligible"] ul,
+  [class*="st-key-civicai-ineligible"] ul,
+  [class*="st-key-civicai-manual"] ul {{
+    margin: 0.15rem 0 0.4rem 1.15rem;
+  }}
+  [data-testid="stCheckbox"] {{
+    color: {NAVY};
+    position: relative;
+    z-index: 1;
+  }}
+  [data-testid="stCheckbox"] label {{
+    color: {NAVY};
+    pointer-events: auto;
+  }}
+  .civicai-elig-eligible {{
+    background: #E7F3EC;
+    color: {SUCCESS} !important;
+  }}
+  .civicai-elig-potentially_ineligible {{
+    background: {WARNING_BG};
+    color: {CHARCOAL} !important;
+  }}
+  .civicai-elig-manual_review {{
+    background: {LIGHT_BLUE};
+    color: {CIVIC_BLUE} !important;
   }}
   .st-key-civicai-upload [data-testid="stFileUploader"] {{
     background: {LIGHT_BLUE};
@@ -924,6 +1017,25 @@ _APPOINTMENT_STATUS_LABELS = {
     "completed": "Completed",
     "cancelled": "Cancelled",
 }
+
+
+_ELIGIBILITY_RESULT_LABELS = {
+    "eligible": "Eligible",
+    "potentially_ineligible": "Potentially ineligible",
+    "manual_review": "Manual review",
+}
+
+
+def eligibility_result_chip(result: str) -> None:
+    """Label an existing eligibility result. Unknown values are shown as-is."""
+    key = (result or "").strip()
+    label = _ELIGIBILITY_RESULT_LABELS.get(key, key or "Unknown")
+    css = (
+        f"civicai-status-chip civicai-elig-{_escape(key)}"
+        if key in _ELIGIBILITY_RESULT_LABELS
+        else "civicai-status-chip"
+    )
+    st.markdown(f'<span class="{css}">{_escape(label)}</span>', unsafe_allow_html=True)
 
 
 def appointment_status_chip(status: str) -> None:
