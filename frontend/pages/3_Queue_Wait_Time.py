@@ -11,6 +11,11 @@ from requests import HTTPError
 
 from utils.api_client import get, post
 from utils.auth import current_role, sidebar_login
+from utils.queue_display import (
+    format_appointment_date,
+    format_predicted_wait,
+    sort_officer_appointments,
+)
 
 SERVICE_TYPES = [
     "Income Certificate",
@@ -134,15 +139,18 @@ elif role in ("officer", "administrator"):
             use_container_width=True,
         )
 
-    live = status.get("appointments") or []
+    live = sort_officer_appointments(status.get("appointments") or [])
     if not live:
         st.caption("No scheduled or in-service appointments.")
     for row in live:
         with st.expander(
-            f"#{row['appointment_id']} {row['service_type']} "
-            f"q{row.get('queue_number')} ({row['status']})"
+            f"#{row['appointment_id']} {row['service_type']} ({row['status']})"
         ):
-            st.write(f"Predicted wait: {row.get('predicted_wait_time')} minutes")
+            st.write(f"Appointment date: {format_appointment_date(row.get('appointment_date'))}")
+            st.write(f"Queue number: {row.get('queue_number')}")
+            st.write(
+                f"Predicted wait: {format_predicted_wait(row.get('predicted_wait_time'))} minutes"
+            )
             st.write(f"Queue depth: {row.get('current_queue_depth')}")
             appointment_id = row["appointment_id"]
             start, complete = st.columns(2)
