@@ -556,7 +556,8 @@ _THEME_CSS = f"""
   }}
   .st-key-civicai-upload .stButton > button,
   .st-key-civicai-book .stButton > button,
-  .st-key-civicai-questions .stButton > button {{
+  .st-key-civicai-questions .stButton > button,
+  .st-key-civicai-feedback .stButton > button {{
     background: {CIVIC_BLUE};
     border-color: {CIVIC_BLUE};
     color: {SURFACE};
@@ -715,6 +716,57 @@ _THEME_CSS = f"""
   .civicai-elig-manual_review {{
     background: {LIGHT_BLUE};
     color: {CIVIC_BLUE} !important;
+  }}
+  .st-key-civicai-feedback {{
+    background: {LIGHT_BLUE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {CIVIC_BLUE};
+    border-radius: 8px;
+    padding: 1.05rem 1.2rem 1rem 1.2rem;
+    margin: 0 0 1.1rem 0;
+    overflow: visible;
+    position: relative;
+  }}
+  .st-key-civicai-feedback [data-testid="stTextArea"] textarea {{
+    min-height: 10rem;
+    background: {SURFACE} !important;
+    color: {NAVY} !important;
+  }}
+  [class*="st-key-civicai-feedback-result"] {{
+    background: {SURFACE};
+    border: 1px solid {BORDER};
+    border-left: 4px solid {NAVY};
+    border-radius: 8px;
+    padding: 0.7rem 1rem 0.75rem 1rem;
+    margin: 0 0 0.75rem 0;
+  }}
+  [class*="st-key-civicai-feedback-result"] [data-testid="stAlert"] {{
+    background: transparent;
+    border: 0;
+  }}
+  .civicai-sent-positive {{
+    background: #E7F3EC;
+    color: {SUCCESS} !important;
+  }}
+  .civicai-sent-neutral {{
+    background: {LIGHT_BLUE};
+    color: {CIVIC_BLUE} !important;
+  }}
+  .civicai-sent-negative {{
+    background: {WARNING_BG};
+    color: {CHARCOAL} !important;
+  }}
+  .civicai-urg-low {{
+    background: {LIGHT_BLUE};
+    color: {CIVIC_BLUE} !important;
+  }}
+  .civicai-urg-medium {{
+    background: {WARNING_BG};
+    color: {CHARCOAL} !important;
+  }}
+  .civicai-urg-high {{
+    background: {ERROR_BG};
+    color: {ERROR} !important;
   }}
   .st-key-civicai-upload [data-testid="stFileUploader"] {{
     background: {LIGHT_BLUE};
@@ -1024,6 +1076,72 @@ _ELIGIBILITY_RESULT_LABELS = {
     "potentially_ineligible": "Potentially ineligible",
     "manual_review": "Manual review",
 }
+
+
+_SENTIMENT_LABELS = {
+    "positive": "Positive",
+    "neutral": "Neutral",
+    "negative": "Negative",
+}
+
+_URGENCY_LABELS = {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+}
+
+
+def feedback_sentiment_chip(sentiment: str) -> None:
+    """Label an existing sentiment value. Unknown values are shown as-is."""
+    key = (sentiment or "").strip()
+    label = _SENTIMENT_LABELS.get(key, key or "Unknown")
+    css = (
+        f"civicai-status-chip civicai-sent-{_escape(key)}"
+        if key in _SENTIMENT_LABELS
+        else "civicai-status-chip"
+    )
+    st.markdown(f'<span class="{css}">{_escape(label)}</span>', unsafe_allow_html=True)
+
+
+def feedback_urgency_chip(urgency: str) -> None:
+    """Label an existing urgency value. Unknown values are shown as-is."""
+    key = (urgency or "").strip()
+    label = _URGENCY_LABELS.get(key, key or "Unknown")
+    css = (
+        f"civicai-status-chip civicai-urg-{_escape(key)}"
+        if key in _URGENCY_LABELS
+        else "civicai-status-chip"
+    )
+    st.markdown(f'<span class="{css}">{_escape(label)}</span>', unsafe_allow_html=True)
+
+
+def feedback_analysis_rows(sentiment: str, urgency: str) -> None:
+    """Compact sentiment and urgency labels from the backend response."""
+    sentiment_key = (sentiment or "").strip()
+    urgency_key = (urgency or "").strip()
+    sentiment_label = _SENTIMENT_LABELS.get(sentiment_key, sentiment_key or "Unknown")
+    urgency_label = _URGENCY_LABELS.get(urgency_key, urgency_key or "Unknown")
+    sentiment_css = (
+        f"civicai-status-chip civicai-sent-{_escape(sentiment_key)}"
+        if sentiment_key in _SENTIMENT_LABELS
+        else "civicai-status-chip"
+    )
+    urgency_css = (
+        f"civicai-status-chip civicai-urg-{_escape(urgency_key)}"
+        if urgency_key in _URGENCY_LABELS
+        else "civicai-status-chip"
+    )
+    st.markdown(
+        '<div class="civicai-info-row">'
+        '<span class="civicai-info-label">Sentiment</span>'
+        f'<span class="{sentiment_css}">{_escape(sentiment_label)}</span>'
+        "</div>"
+        '<div class="civicai-info-row">'
+        '<span class="civicai-info-label">Urgency</span>'
+        f'<span class="{urgency_css}">{_escape(urgency_label)}</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def eligibility_result_chip(result: str) -> None:
