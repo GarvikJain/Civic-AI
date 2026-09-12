@@ -14,6 +14,7 @@ from utils.auth import current_role, sidebar_login
 from utils.queue_display import (
     format_appointment_date,
     format_predicted_wait,
+    sort_citizen_appointments,
     sort_officer_appointments,
 )
 
@@ -90,14 +91,18 @@ elif role == "citizen":
         st.error("Backend is not reachable.")
         appointments = []
 
+    appointments = sort_citizen_appointments(appointments or [])
     if not appointments:
         st.caption("You have no appointments yet.")
     for row in appointments:
         with st.expander(
             f"#{row['appointment_id']} {row['service_type']} ({row['status']})"
         ):
+            st.write(f"Appointment date: {format_appointment_date(row.get('appointment_date'))}")
             st.write(f"Queue number: {row.get('queue_number')}")
-            st.write(f"Predicted wait: {row.get('predicted_wait_time')} minutes")
+            st.write(
+                f"Predicted wait: {format_predicted_wait(row.get('predicted_wait_time'))} minutes"
+            )
             st.write(f"Current queue depth: {row.get('current_queue_depth')}")
             if row.get("officer_id"):
                 st.caption(f"Handled by officer #{row['officer_id']}")

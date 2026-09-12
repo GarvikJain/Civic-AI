@@ -65,7 +65,7 @@ def format_predicted_wait(value: Any) -> str:
     return f"{number:.2f}"
 
 
-def sort_officer_appointments(
+def _sort_appointments(
     rows: list[dict], zone: tzinfo | None = None
 ) -> list[dict]:
     """Office-local calendar date, then queue_number, then appointment_id."""
@@ -81,3 +81,17 @@ def sort_officer_appointments(
         )
 
     return sorted(rows, key=sort_key)
+
+
+def sort_officer_appointments(
+    rows: list[dict], zone: tzinfo | None = None
+) -> list[dict]:
+    """Order officer live-queue cards by office-local date."""
+    return _sort_appointments(rows, zone)
+
+
+def sort_citizen_appointments(
+    rows: list[dict], zone: tzinfo | None = None
+) -> list[dict]:
+    """Order citizen appointment cards by office-local date."""
+    return _sort_appointments(rows, zone)

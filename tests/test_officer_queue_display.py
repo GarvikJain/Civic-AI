@@ -14,12 +14,22 @@ from utils.queue_display import (
     format_appointment_date,
     format_predicted_wait,
     office_calendar_date,
+    sort_citizen_appointments,
     sort_officer_appointments,
 )
 
 IST = ZoneInfo("Asia/Kolkata")
 
 QUEUE_PAGE = FRONTEND / "pages" / "3_Queue_Wait_Time.py"
+
+
+def test_sort_citizen_appointments_is_exported():
+    import inspect
+
+    import utils.queue_display as display
+
+    assert inspect.isfunction(display.sort_citizen_appointments)
+    assert inspect.isfunction(display.sort_officer_appointments)
 
 
 def test_queue_display_does_not_import_the_backend_package():
@@ -31,10 +41,16 @@ def test_queue_display_does_not_import_the_backend_package():
 
 def test_officer_queue_page_shows_date_and_sorted_cards():
     text = QUEUE_PAGE.read_text(encoding="utf-8")
-    assert "Appointment date:" in text
-    assert "sort_officer_appointments" in text
-    assert "format_predicted_wait" in text
-    assert "format_appointment_date" in text
+    citizen_section = text.split("Your appointments", 1)[1].split("Live office queue", 1)[0]
+    officer_section = text.split("Live office queue", 1)[1]
+    assert "sort_citizen_appointments" in citizen_section
+    assert "Appointment date:" in citizen_section
+    assert "format_appointment_date" in citizen_section
+    assert "format_predicted_wait" in citizen_section
+    assert "Cancel" in citizen_section
+    assert "sort_officer_appointments" in officer_section
+    assert "Appointment date:" in officer_section
+    assert "Start service" in officer_section
 
 
 def test_appointment_date_is_formatted_from_the_api_timestamp():
@@ -110,4 +126,29 @@ def test_office_timezone_date_crosses_utc_calendar_boundary():
         },
     ]
     ordered = sort_officer_appointments(rows, zone=IST)
+    assert [row["appointment_id"] for row in ordered] == [1, 3, 2]
+
+
+def test_citizen_appointments_use_the_same_office_timezone_sort():
+    rows = [
+        {
+            "appointment_id": 2,
+            "appointment_date": "2026-09-14T20:00:00+00:00",
+            "queue_number": 2,
+        },
+        {
+            "appointment_id": 1,
+            "appointment_date": "2026-09-14T10:00:00+00:00",
+            "queue_number": 1,
+        },
+        {
+            "appointment_id": 3,
+            "appointment_date": "2026-09-15T10:00:00+00:00",
+            "queue_number": 1,
+        },
+    ]
+    assert format_appointment_date(rows[0]["appointment_date"], zone=IST) == (
+        "15 September 2026"
+    )
+    ordered = sort_citizen_appointments(rows, zone=IST)
     assert [row["appointment_id"] for row in ordered] == [1, 3, 2]
